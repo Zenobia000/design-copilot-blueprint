@@ -106,6 +106,15 @@ const MOCK_AI_ANTIANCHOR: AntiAnchorRoute[] = [
   { id: "aar-ai-003", name: "液壓靜態傳動方案", description: "以微型液壓泵-馬達迴路替代機械傳動鏈，實現無段變速。運轉噪音極低但系統重量與成本需評估。屬非對標路線。" },
 ];
 
+const sameById = <T extends { id: string }>(a: T[] = [], b: T[] = []) => {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].id !== b[i].id) return false;
+  }
+  return true;
+};
+
 export default function Create() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -172,12 +181,31 @@ export default function Create() {
   const [localScamperVariants, setLocalScamperVariants] = useState<ScamperVariant[]>([]);
   const [localAlternatives, setLocalAlternatives] = useState<Alternative[]>([]);
 
-  // Sync query data → local state
-  useEffect(() => { setLocalRoutes(antiAnchorQuery.data); }, [antiAnchorQuery.data]);
-  useEffect(() => { setLocalTrizSolutions(trizQuery.data); }, [trizQuery.data]);
-  useEffect(() => { setLocalSubsystems(subsystemsQuery.data); }, [subsystemsQuery.data]);
-  useEffect(() => { setLocalScamperVariants(scamperQuery.data); }, [scamperQuery.data]);
-  useEffect(() => { setLocalAlternatives(alternativesQuery.data); }, [alternativesQuery.data]);
+  // Sync query data → local state (guard against endless updates)
+  useEffect(() => {
+    const next = antiAnchorQuery.data ?? [];
+    setLocalRoutes((prev) => (sameById(prev, next) ? prev : next));
+  }, [antiAnchorQuery.data]);
+
+  useEffect(() => {
+    const next = trizQuery.data ?? [];
+    setLocalTrizSolutions((prev) => (sameById(prev, next) ? prev : next));
+  }, [trizQuery.data]);
+
+  useEffect(() => {
+    const next = subsystemsQuery.data ?? [];
+    setLocalSubsystems((prev) => (sameById(prev, next) ? prev : next));
+  }, [subsystemsQuery.data]);
+
+  useEffect(() => {
+    const next = scamperQuery.data ?? [];
+    setLocalScamperVariants((prev) => (sameById(prev, next) ? prev : next));
+  }, [scamperQuery.data]);
+
+  useEffect(() => {
+    const next = alternativesQuery.data ?? [];
+    setLocalAlternatives((prev) => (sameById(prev, next) ? prev : next));
+  }, [alternativesQuery.data]);
 
   // Use local state as the working data (allows optimistic updates)
   const routes = localRoutes;
@@ -214,9 +242,10 @@ export default function Create() {
   // Track anti-anchor generated status from data
   useEffect(() => {
     if (!antiAnchorQuery.isLoading) {
-      setAntiAnchorGenerated(routes.length > 0);
+      const next = routes.length > 0;
+      setAntiAnchorGenerated((prev) => (prev === next ? prev : next));
     }
-  }, [routes, antiAnchorQuery.isLoading]);
+  }, [routes.length, antiAnchorQuery.isLoading]);
 
   // ── Computed: Multi-Solution Adoption State from DB (fallback to mock) ──
   const adoptionState: MultiSolutionAdoptionState = useMemo(() => {

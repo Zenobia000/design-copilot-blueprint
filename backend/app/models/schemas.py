@@ -221,13 +221,13 @@ class AntiAnchorRequest(BaseModel):
 
 class AntiAnchorRoute(BaseModel):
     name: str
-    description: str
+    description: str = ""
     is_non_typical: bool = True
     rationale: str = ""
 
 
 class AntiAnchorResponse(BaseModel):
-    routes: list[AntiAnchorRoute]
+    routes: list[AntiAnchorRoute] = Field(validation_alias="alternatives")
 
 
 # ---------------------------------------------------------------------------
@@ -439,8 +439,6 @@ class ContradictionFormalizeResponse(BaseModel):
     improving_param: int | None = None
     worsening_param: int | None = None
     physical_contradiction: str | None = None
-    pc_attribute_a: str | None = None
-    pc_attribute_not_a: str | None = None
     type: str = "TC"  # TC or PC
     confidence: float = Field(ge=0, le=1, default=0.7)
 
