@@ -685,7 +685,7 @@ export default function Create() {
         {(state.health === 'critical' || state.health === 'circular') && (
           <ArchitectureHaltOverlay
             health={state.health}
-            onGoBack={() => navigate(`/projects/${id}/task-definition`)}
+            onGoBack={() => navigate(`/projects/${id}/brief`)}
             onForceContinue={forceContinue}
           />
         )}

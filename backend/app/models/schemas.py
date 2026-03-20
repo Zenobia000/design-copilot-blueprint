@@ -201,11 +201,14 @@ class CldEdge(BaseModel):
     to_node: str
     polarity: str = "+"
 
+class CldBreakpoint(BaseModel):
+    node_id: str
+    reason: str
 
 class CldGenerationResponse(BaseModel):
     nodes: list[CldNode]
     edges: list[CldEdge]
-    breakpoints: list[str]
+    breakpoints: list[CldBreakpoint]
 
 
 # ---------------------------------------------------------------------------

@@ -39,8 +39,35 @@ interface CldTabProps {
   kpis?: string[];
 }
 
-const NODE_W = 140;
-const NODE_H = 40;
+const NODE_W = 160;
+const NODE_H = 44;
+
+// ── 依像素寬度截斷（中英混排安全）────────────────────────────────────────
+
+function truncateByWidth(text: string, maxWidth: number, font = "500 12px sans-serif") {
+  if (!text) return text;
+  if (typeof document === "undefined") return text;
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return text;
+
+  ctx.font = font;
+  if (ctx.measureText(text).width <= maxWidth) return text;
+
+  const ellipsis = "…";
+  let lo = 0;
+  let hi = text.length;
+
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (ctx.measureText(text.slice(0, mid) + ellipsis).width <= maxWidth) lo = mid;
+    else hi = mid - 1;
+  }
+  return text.slice(0, lo) + ellipsis;
+}
+
+const TEXT_MAX_WIDTH = NODE_W - 24; // 左右各留 12px
 
 // ── Dagre auto-layout ────────────────────────────────────────────────────────
 
@@ -69,30 +96,49 @@ function layoutWithDagre(nodes: Node[], edges: Edge[]): Node[] {
 // ── Map CausalLoop → React Flow nodes/edges ──────────────────────────────────
 
 function toFlowNodes(causalNodes: CausalNode[]): Node[] {
-  return causalNodes.map((n) => ({
-    id: n.id,
-    position: n.position,
-    data: { label: n.label, isBreakpoint: n.isBreakpoint },
-    style: {
-      width: NODE_W,
-      height: NODE_H,
-      borderRadius: 8,
-      border: n.isBreakpoint ? "2px dashed #dc3545" : "1px solid #e9ecef",
-      background: n.isBreakpoint ? "#fff5f5" : "#ffffff",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: 12,
-      fontWeight: n.isBreakpoint ? 600 : 400,
-      cursor: "pointer",
-    },
-  }));
+  return causalNodes.map((n) => {
+    const displayLabel = truncateByWidth(n.label, TEXT_MAX_WIDTH, "500 12px sans-serif");
+
+    return {
+      id: n.id,
+      position: n.position,
+      data: {
+        label: displayLabel,
+        fullLabel: n.label,
+        isBreakpoint: n.isBreakpoint,
+      },
+      style: {
+        width: NODE_W,
+        height: NODE_H,
+        borderRadius: 8,
+        border: n.isBreakpoint
+          ? "2px dashed hsl(var(--destructive))"
+          : "1px solid hsl(var(--border))",
+        background: n.isBreakpoint
+          ? "hsl(var(--destructive) / 0.08)"
+          : "hsl(var(--card))",
+        color: "hsl(var(--card-foreground))",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 12,
+        fontWeight: n.isBreakpoint ? 600 : 500,
+        cursor: "pointer",
+        boxShadow: "0 1px 3px hsl(var(--foreground) / 0.06)",
+        overflow: "hidden" as const,
+        textOverflow: "ellipsis" as const,
+        whiteSpace: "nowrap" as const,
+        padding: "0 12px",
+      },
+    };
+  });
 }
 
 function toFlowEdges(causalEdges: CausalEdge[]): Edge[] {
   return causalEdges.map((e) => {
     const isPositive = e.feedbackType === "positive";
-    const color = isPositive ? "#3B82F6" : "#dc3545";
+    const color = isPositive ? "#3B82F6" : "#EF4444";
+
     return {
       id: e.id,
       source: e.source,
@@ -100,7 +146,12 @@ function toFlowEdges(causalEdges: CausalEdge[]): Edge[] {
       animated: false,
       label: isPositive ? "+" : "−",
       labelStyle: { fill: color, fontWeight: 700, fontSize: 14 },
-      labelBgStyle: { fill: "#ffffff", fillOpacity: 0.9 },
+      labelBgStyle: {
+        fill: "hsl(var(--card))",
+        fillOpacity: 0.95,
+        stroke: "hsl(var(--border))",
+        strokeWidth: 0.5,
+      },
       labelBgPadding: [4, 4] as [number, number],
       labelBgBorderRadius: 4,
       style: { stroke: color, strokeWidth: 2 },
@@ -116,7 +167,16 @@ function toFlowEdges(causalEdges: CausalEdge[]): Edge[] {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export function CldTab({ causalLoop, onUpdateCausalLoop, projectId, contradictions = [], assumptions = [], mission, constraints, kpis }: CldTabProps) {
+export function CldTab({
+  causalLoop,
+  onUpdateCausalLoop,
+  projectId,
+  contradictions = [],
+  assumptions = [],
+  mission,
+  constraints,
+  kpis,
+}: CldTabProps) {
   const qc = useQueryClient();
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -132,6 +192,48 @@ export function CldTab({ causalLoop, onUpdateCausalLoop, projectId, contradictio
     return () => window.removeEventListener("keydown", handleEsc);
   }, [isFullscreen]);
 
+  // 深色模式下 ReactFlow Controls / MiniMap 樣式修正
+  useEffect(() => {
+    const styleId = "cld-dark-fix";
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.textContent = `
+      .dark .react-flow__controls {
+        background: hsl(var(--card));
+        border: 1px solid hsl(var(--border));
+        border-radius: 8px;
+        box-shadow: 0 2px 8px hsl(var(--foreground) / 0.1);
+      }
+      .dark .react-flow__controls-button {
+        background: hsl(var(--card));
+        border-bottom: 1px solid hsl(var(--border));
+        fill: hsl(var(--foreground));
+      }
+      .dark .react-flow__controls-button:hover {
+        background: hsl(var(--muted));
+      }
+      .dark .react-flow__minimap {
+        background: hsl(var(--card));
+        border: 1px solid hsl(var(--border));
+        border-radius: 8px;
+      }
+      .dark .react-flow__minimap-mask {
+        fill: hsl(var(--foreground) / 0.1);
+      }
+      .dark .react-flow__minimap-node {
+        fill: hsl(var(--muted-foreground));
+        stroke: none;
+      }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      document.getElementById(styleId)?.remove();
+    };
+  }, []);
+
   const selectedNode = causalLoop?.nodes.find((n) => n.id === selectedNodeId) ?? null;
   const breakpointsCount = causalLoop?.nodes.filter((n) => n.isBreakpoint).length ?? 0;
 
@@ -142,18 +244,19 @@ export function CldTab({ causalLoop, onUpdateCausalLoop, projectId, contradictio
 
   // ── React Flow data (memoized) ──────────────────────────────────────────
 
-  const flowEdges = useMemo(() => (causalLoop ? toFlowEdges(causalLoop.edges) : []), [causalLoop]);
+  const flowEdges = useMemo(
+    () => (causalLoop ? toFlowEdges(causalLoop.edges) : []),
+    [causalLoop],
+  );
 
   const flowNodes = useMemo(() => {
     if (!causalLoop) return [];
     const raw = toFlowNodes(causalLoop.nodes);
-    // Apply dagre layout for clean positioning
     return layoutWithDagre(raw, flowEdges);
   }, [causalLoop, flowEdges]);
 
   const [localNodes, setLocalNodes] = useState<Node[]>([]);
 
-  // Sync flowNodes → localNodes when data changes
   useMemo(() => {
     setLocalNodes(flowNodes);
   }, [flowNodes]);
@@ -165,11 +268,14 @@ export function CldTab({ causalLoop, onUpdateCausalLoop, projectId, contradictio
 
   // ── Handlers ────────────────────────────────────────────────────────────
 
-  const handleNodeClick: NodeMouseHandler = useCallback((_event, node) => {
-    setSelectedNodeId(node.id);
-    const cn = causalLoop?.nodes.find((n) => n.id === node.id);
-    setEditReason(cn?.breakpointReason ?? "");
-  }, [causalLoop]);
+  const handleNodeClick: NodeMouseHandler = useCallback(
+    (_event, node) => {
+      setSelectedNodeId(node.id);
+      const cn = causalLoop?.nodes.find((n) => n.id === node.id);
+      setEditReason(cn?.breakpointReason ?? "");
+    },
+    [causalLoop],
+  );
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -183,11 +289,9 @@ export function CldTab({ causalLoop, onUpdateCausalLoop, projectId, contradictio
         kpis,
       });
 
-      // Delete existing CLD data for this project
       await supabase.from("cld_edges").delete().eq("project_id", projectId);
       await supabase.from("cld_nodes").delete().eq("project_id", projectId);
 
-      // Persist nodes (position will be computed by dagre on render)
       const nodeRows = result.nodes.map((n, i) => ({
         project_id: projectId,
         label: n.label,
@@ -203,7 +307,6 @@ export function CldTab({ causalLoop, onUpdateCausalLoop, projectId, contradictio
         .select();
       if (nodesErr) throw nodesErr;
 
-      // Build mapping from backend node IDs to Supabase IDs
       const idMap = new Map<string, string>();
       result.nodes.forEach((n, i) => {
         if (insertedNodes?.[i]) {
@@ -211,7 +314,6 @@ export function CldTab({ causalLoop, onUpdateCausalLoop, projectId, contradictio
         }
       });
 
-      // Persist edges with mapped node IDs
       const edgeRows = result.edges
         .filter((e) => idMap.has(e.from_node) && idMap.has(e.to_node))
         .map((e) => ({
@@ -250,7 +352,10 @@ export function CldTab({ causalLoop, onUpdateCausalLoop, projectId, contradictio
         .from("cld_nodes")
         .update({ is_leverage: false })
         .eq("id", nodeId);
-      if (error) { toast.error(`更新失敗：${error.message}`); return; }
+      if (error) {
+        toast.error(`更新失敗：${error.message}`);
+        return;
+      }
       invalidateCld();
       toast.success("已取消斷路點標記");
     } else {
@@ -262,7 +367,10 @@ export function CldTab({ causalLoop, onUpdateCausalLoop, projectId, contradictio
         .from("cld_nodes")
         .update({ is_leverage: true })
         .eq("id", nodeId);
-      if (error) { toast.error(`更新失敗：${error.message}`); return; }
+      if (error) {
+        toast.error(`更新失敗：${error.message}`);
+        return;
+      }
       setEditReason("");
       invalidateCld();
       toast.success("已標記為斷路點");
@@ -278,15 +386,21 @@ export function CldTab({ causalLoop, onUpdateCausalLoop, projectId, contradictio
         {isGenerating ? (
           <div className="space-y-4 py-8">
             <Skeleton className="h-[300px] w-full rounded-lg" />
-            <p className="text-sm text-muted-foreground text-center">AI 正在建構因果迴路圖...</p>
+            <p className="text-sm text-muted-foreground text-center">
+              AI 正在建構因果迴路圖...
+            </p>
           </div>
         ) : (
           <div className="text-center py-16 space-y-3 bg-muted/50 rounded-lg border border-dashed">
             <p className="text-muted-foreground font-medium">尚無因果迴路圖</p>
-            <p className="text-sm text-muted-foreground">點擊下方按鈕，AI 將根據問答和矛盾生成因果迴路圖</p>
+            <p className="text-sm text-muted-foreground">
+              點擊下方按鈕，AI 將根據問答和矛盾生成因果迴路圖
+            </p>
             <Button onClick={handleGenerate}>
               <Sparkles className="h-4 w-4 mr-1" /> AI 生成因果迴路
-              <Badge variant="secondary" className="text-[10px] ml-1">AI</Badge>
+              <Badge variant="secondary" className="text-[10px] ml-1">
+                AI
+              </Badge>
             </Button>
           </div>
         )}
@@ -298,13 +412,14 @@ export function CldTab({ causalLoop, onUpdateCausalLoop, projectId, contradictio
 
   return (
     <div className="space-y-5">
-      {/* Purpose intro */}
       <SectionIntro text="因果迴路圖（CLD）呈現設計變量之間的因果關係。正回饋 (+) 表示同向變化，負回饋 (-) 表示反向變化。找出迴路中的「斷路點」——即最值得優先突破的瓶頸變量——可以有效打破惡性循環。拖拉節點以調整佈局。" />
 
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">因果迴路圖 (Causal Loop Diagram)</h2>
         <div className="flex items-center gap-1.5">
-          <Badge className="bg-blue-500 text-white text-xs">{breakpointsCount} 斷路點</Badge>
+          <Badge className="bg-blue-500 text-white text-xs">
+            {breakpointsCount} 斷路點
+          </Badge>
           <HelpTooltip text="「斷路點」是因果迴路中最具槓桿效應的節點。在此處介入改變，可以打破整個迴路的負面循環，是設計創新的最佳切入點。" />
         </div>
       </div>
@@ -314,7 +429,7 @@ export function CldTab({ causalLoop, onUpdateCausalLoop, projectId, contradictio
         className={
           isFullscreen
             ? "fixed inset-0 z-50 bg-background"
-            : "relative rounded-lg border overflow-hidden bg-muted/30"
+            : "relative rounded-lg border overflow-hidden bg-card"
         }
         style={isFullscreen ? undefined : { height: 500 }}
       >
@@ -325,8 +440,13 @@ export function CldTab({ causalLoop, onUpdateCausalLoop, projectId, contradictio
           onClick={() => setIsFullscreen((v) => !v)}
           title={isFullscreen ? "退出全螢幕" : "全螢幕"}
         >
-          {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          {isFullscreen ? (
+            <Minimize2 className="h-4 w-4" />
+          ) : (
+            <Maximize2 className="h-4 w-4" />
+          )}
         </Button>
+
         <ReactFlow
           nodes={localNodes}
           edges={flowEdges}
@@ -337,8 +457,10 @@ export function CldTab({ causalLoop, onUpdateCausalLoop, projectId, contradictio
           minZoom={0.3}
           maxZoom={2}
           proOptions={{ hideAttribution: true }}
+          className="[&_.react-flow__node]:!overflow-visible"
         >
-          <Background gap={20} size={1} color="#e5e7eb" />
+          {/* 背景格點跟隨主題 */}
+          <Background gap={20} size={1} color="hsl(var(--border) / 0.5)" />
           <Controls showInteractive={false} />
         </ReactFlow>
       </div>
@@ -350,11 +472,11 @@ export function CldTab({ causalLoop, onUpdateCausalLoop, projectId, contradictio
           <span>正回饋 (+)</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-5 h-0.5 bg-red-600" />
+          <div className="w-5 h-0.5 bg-red-500" />
           <span>負回饋 (−)</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-5 h-[2px] border border-dashed border-red-600" />
+          <div className="w-5 h-[2px] border border-dashed border-red-500" />
           <span>斷路點 ★</span>
         </div>
       </div>
@@ -384,9 +506,15 @@ export function CldTab({ causalLoop, onUpdateCausalLoop, projectId, contradictio
       {/* Bottom actions */}
       <div className="flex flex-wrap gap-3">
         <Button variant="secondary" onClick={handleGenerate} disabled={isGenerating}>
-          {isGenerating ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1" />}
+          {isGenerating ? (
+            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+          ) : (
+            <Sparkles className="h-4 w-4 mr-1" />
+          )}
           AI 重新生成
-          <Badge variant="secondary" className="text-[10px] ml-1">AI</Badge>
+          <Badge variant="secondary" className="text-[10px] ml-1">
+            AI
+          </Badge>
         </Button>
       </div>
 
@@ -398,11 +526,16 @@ export function CldTab({ causalLoop, onUpdateCausalLoop, projectId, contradictio
             {causalLoop.nodes
               .filter((n) => n.isBreakpoint)
               .map((n, i) => (
-                <div key={n.id} className="flex items-start gap-3 p-2 rounded border text-sm">
+                <div
+                  key={n.id}
+                  className="flex items-start gap-3 p-2 rounded border text-sm"
+                >
                   <span className="text-muted-foreground w-6 shrink-0">{i + 1}.</span>
                   <div className="flex-1">
                     <span className="font-medium">{n.label}</span>
-                    <p className="text-xs text-muted-foreground mt-0.5">{n.breakpointReason}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {n.breakpointReason}
+                    </p>
                   </div>
                   <Button
                     variant="ghost"
@@ -436,7 +569,9 @@ export function CldTab({ causalLoop, onUpdateCausalLoop, projectId, contradictio
                   <span className="text-xs text-muted-foreground">相關矛盾</span>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {selectedNode.relatedContradictions.map((cId) => (
-                      <Badge key={cId} variant="outline" className="text-xs">{cId}</Badge>
+                      <Badge key={cId} variant="outline" className="text-xs">
+                        {cId}
+                      </Badge>
                     ))}
                   </div>
                 </div>

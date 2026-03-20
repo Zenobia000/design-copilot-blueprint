@@ -156,9 +156,9 @@ Build a Causal Loop Diagram (CLD) from the contradictions and assumptions below.
 <output_schema>
 {{
   "nodes": [{{"id": "EFF", "label": "Efficiency"}}],
-  "edges": [{{"from": "EFF", "to": "COST", "polarity": "-"}}],
+  "edges": [{{"from_node": "EFF", "to_node": "COST", "polarity": "-"}}],
   "loops": [{{"id": "R1", "type": "reinforcing", "node_ids": ["EFF","PERF"]}}],
-  "breakpoints": [{{"node_id": "EFF", "rationale": "..."}}]
+  "breakpoints": [{{"node_id": "EFF", "reason": "..."}}]
 }}
 </output_schema>
 """
