@@ -232,9 +232,102 @@ Rules:
 # Convergence Scan
 # ---------------------------------------------------------------------------
 
+CONVERGENCE_SCAN_PHASE_A = """\
+<task>
+Analyse the contradiction space for inter-contradiction conflicts, circular \
+dependencies, and coverage gaps — WITHOUT any solution alternatives.
+This is Phase A (problem-space health check) of the convergence pipeline.
+</task>
+
+<context>
+<mission>{mission}</mission>
+<project_constraints>
+{constraints}
+</project_constraints>
+<project_kpis>
+{kpis}
+</project_kpis>
+<contradictions>
+{contradictions}
+</contradictions>
+</context>
+
+<method>
+Analyse the contradiction set through four lenses:
+
+1. **Inter-contradiction conflicts** — Do any contradictions share or oppose the same \
+TRIZ parameters? (e.g., C1 improves P14 while C2 worsens P14). Record each conflict \
+as a secondary contradiction with source set to the originating contradiction ID.
+
+2. **Circular dependencies** — Detect chains where resolving C1 would worsen C2, \
+resolving C2 would worsen C3, and resolving C3 would worsen C1. Any cycle of length \
+≥ 2 counts. If found, set architecture_health to "circular".
+
+3. **Severity amplification** — Identify combinations of contradictions whose \
+simultaneous presence makes the problem space harder than the sum of parts \
+(e.g., two major contradictions that share the same worsening parameter \
+amplify to fatal-level difficulty).
+
+4. **Coverage gaps** — Given the mission, constraints, and KPIs, are there critical \
+engineering dimensions (thermal, structural, cost, safety, supply chain, regulatory) \
+that NO existing contradiction addresses? Report each gap as a minor secondary \
+contradiction.
+</method>
+
+<convergence_formula>
+Compute these intermediate values:
+
+  total = count of all contradictions
+  well_formed = contradictions with both improving_param and worsening_param set \
+(or physical_contradiction filled for PC type)
+  non_circular = contradictions NOT part of any detected circular chain
+  no_fatal_interaction = 1 if no fatal inter-contradiction conflict found, else 0
+  has_coverage = 1 if total >= 2 and no critical coverage gaps, else 0
+
+  convergence_score = round(
+    0.30 × (well_formed / max(total, 1))
+    + 0.30 × (non_circular / max(total, 1))
+    + 0.25 × no_fatal_interaction
+    + 0.15 × has_coverage
+  ) × 100
+
+Show all intermediate values in reasoning_trace.
+
+Architecture health thresholds:
+  - Any circular dependency detected → "circular"
+  - convergence_score > 80  → "healthy"
+  - 50 ≤ convergence_score ≤ 80 → "warning"
+  - convergence_score < 50  → "critical"
+
+If any fatal inter-contradiction conflict exists → force_pause = true.
+</convergence_formula>
+
+<output_schema>
+{{
+  "reasoning_trace": "Phase A analysis: C1(P14→P1) and C3(P26→P14) share P14 — potential interaction ... intermediate: total=4, well_formed=3, non_circular=4, no_fatal=1, has_coverage=1 → score=round(0.30×0.75+0.30×1+0.25×1+0.15×1)×100=89",
+  "new_contradictions": [
+    {{
+      "description": "C1 and C3 share parameter P14 — resolving one may constrain the other",
+      "severity": "major",
+      "source_alternative": "ctr-001",
+      "type": "TC",
+      "improving_param": 14,
+      "worsening_param": null,
+      "reasoning": "C1 improves P14 while C3 worsens P14; solving both simultaneously requires careful parameter decoupling"
+    }}
+  ],
+  "convergence_score": 89,
+  "architecture_health": "healthy",
+  "force_pause": false,
+  "pause_reason": ""
+}}
+</output_schema>
+"""
+
 CONVERGENCE_SCAN = """\
 <task>
-Scan the current alternatives and contradictions to assess convergence health.
+Perform a parameter-level cross-check of alternatives against contradictions \
+to detect secondary contradictions and compute convergence health.
 </task>
 
 <context>
@@ -253,29 +346,77 @@ Scan the current alternatives and contradictions to assess convergence health.
 </contradictions>
 </context>
 
-<instructions>
-1. Identify secondary contradictions — new conflicts introduced by proposed solutions.
-2. Grade each: Fatal / Major / Minor.
-   - Fatal: concept is fundamentally infeasible.
-   - Major: requires additional solving before proceeding.
-   - Minor: log in risk register, does not block progress.
-3. Compute a convergence_score (0–1; 1 = fully converged).
-4. Assess architecture health:
-   - > 0.8 → healthy
-   - 0.5–0.8 → warning
-   - < 0.5 → critical
-5. If unresolved Fatal contradictions exist → force_pause = true.
-</instructions>
+<method>
+For EACH alternative, perform this analysis:
+
+1. **Identify resolved contradictions** — which original contradictions does this \
+alternative's mechanism address? Use `resolves_contradiction_ids` and mechanism text.
+
+2. **Parameter impact analysis** — for the alternative's mechanism:
+   - Which TRIZ parameters does it IMPROVE? (from the contradiction it resolves)
+   - Which TRIZ parameters may it WORSEN? (side-effects of its mechanism)
+   - For each worsened parameter, check if it conflicts with any other contradiction's \
+     improving_param or any constraint/KPI.
+
+3. **Cross-alternative interference** — check if two alternatives' mechanisms \
+require mutually exclusive physical states (e.g., one needs high rigidity, another \
+needs flexibility in the same component).
+
+4. **PC state conflict** — for contradictions of type PC, check if any alternative \
+forces a state that contradicts the physical_contradiction's required dual state.
+
+5. **Record secondary contradictions** with:
+   - The specific parameters or physical properties in conflict
+   - severity: fatal (physically impossible) / major (requires redesign) / minor (risk only)
+   - type: TC (two parameters trade off) or PC (same parameter needs opposite states)
+   - improving_param / worsening_param numbers if identifiable
+</method>
+
+<convergence_formula>
+After identifying all secondary contradictions, compute these intermediate values:
+
+  total_contradictions = count of all contradictions (original + new secondary)
+  resolved_or_minor = original contradictions marked resolved + minor secondary (non-blocking)
+  fatal_unresolved = count of fatal contradictions (original + secondary) not resolved
+  major_unresolved = count of major contradictions (original + secondary) not resolved
+  clean_alternatives = alternatives that introduced 0 fatal/major secondary contradictions
+  total_alternatives = count of all alternatives
+
+  convergence_score = round(
+    0.40 × (resolved_or_minor / max(total_contradictions, 1))
+    + 0.25 × (1 if fatal_unresolved == 0 else 0)
+    + 0.15 × (1 if major_unresolved == 0 else 0)
+    + 0.20 × (clean_alternatives / max(total_alternatives, 1))
+  ) × 100
+
+Show all intermediate values in reasoning_trace.
+
+Architecture health thresholds:
+  - convergence_score > 80  → "healthy"
+  - 50 ≤ convergence_score ≤ 80 → "warning"
+  - convergence_score < 50  → "critical"
+
+If any unresolved Fatal contradiction exists → force_pause = true.
+</convergence_formula>
 
 <output_schema>
 {{
-  "secondary_contradictions": [
-    {{"description": "...", "severity": "major", "source_alternative": "..."}}
+  "reasoning_trace": "Step-by-step parameter cross-check: [alt] improves P14 but worsens P26 ... intermediate: total=5, resolved_or_minor=3, fatal=0, major=1, clean=2/3 → score=round(0.40×0.6+0.25×1+0.15×0+0.20×0.67)×100=63",
+  "new_contradictions": [
+    {{
+      "description": "Alternative X improves weight but introduces thermal coupling at controller MOSFETs",
+      "severity": "major",
+      "source_alternative": "alternative-id-or-name",
+      "type": "TC",
+      "improving_param": 1,
+      "worsening_param": 17,
+      "reasoning": "Integrated housing reduces mass (P1) but creates thermal path from motor to controller (P17), exceeding junction temp limit under sustained load"
+    }}
   ],
-  "convergence_score": 0.72,
+  "convergence_score": 63,
   "architecture_health": "warning",
   "force_pause": false,
-  "summary": "Brief assessment"
+  "pause_reason": ""
 }}
 </output_schema>
 """

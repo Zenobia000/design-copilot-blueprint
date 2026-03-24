@@ -33,6 +33,7 @@ import {
   useAntiAnchorRoutes,
   useCreateAntiAnchorRoute,
   useUpdateAntiAnchorRoute,
+  useDeleteAntiAnchorRoute,
   useTrizSolutions,
   useUpdateTrizSolution,
   useSubsystems,
@@ -106,15 +107,6 @@ const MOCK_AI_ANTIANCHOR: AntiAnchorRoute[] = [
   { id: "aar-ai-003", name: "液壓靜態傳動方案", description: "以微型液壓泵-馬達迴路替代機械傳動鏈，實現無段變速。運轉噪音極低但系統重量與成本需評估。屬非對標路線。" },
 ];
 
-const sameById = <T extends { id: string }>(a: T[] = [], b: T[] = []) => {
-  if (a === b) return true;
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i].id !== b[i].id) return false;
-  }
-  return true;
-};
-
 export default function Create() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -166,6 +158,7 @@ export default function Create() {
   // ── API Hooks: mutations ──
   const createAntiAnchorRoute = useCreateAntiAnchorRoute();
   const updateAntiAnchorRoute = useUpdateAntiAnchorRoute();
+  const deleteAntiAnchorRouteMut = useDeleteAntiAnchorRoute();
   const updateTrizSolution = useUpdateTrizSolution();
   const createSubsystem = useCreateSubsystem();
   const updateSubsystemMut = useUpdateSubsystem();
@@ -181,31 +174,12 @@ export default function Create() {
   const [localScamperVariants, setLocalScamperVariants] = useState<ScamperVariant[]>([]);
   const [localAlternatives, setLocalAlternatives] = useState<Alternative[]>([]);
 
-  // Sync query data → local state (guard against endless updates)
-  useEffect(() => {
-    const next = antiAnchorQuery.data ?? [];
-    setLocalRoutes((prev) => (sameById(prev, next) ? prev : next));
-  }, [antiAnchorQuery.data]);
-
-  useEffect(() => {
-    const next = trizQuery.data ?? [];
-    setLocalTrizSolutions((prev) => (sameById(prev, next) ? prev : next));
-  }, [trizQuery.data]);
-
-  useEffect(() => {
-    const next = subsystemsQuery.data ?? [];
-    setLocalSubsystems((prev) => (sameById(prev, next) ? prev : next));
-  }, [subsystemsQuery.data]);
-
-  useEffect(() => {
-    const next = scamperQuery.data ?? [];
-    setLocalScamperVariants((prev) => (sameById(prev, next) ? prev : next));
-  }, [scamperQuery.data]);
-
-  useEffect(() => {
-    const next = alternativesQuery.data ?? [];
-    setLocalAlternatives((prev) => (sameById(prev, next) ? prev : next));
-  }, [alternativesQuery.data]);
+  // Sync query data → local state
+  useEffect(() => { setLocalRoutes(antiAnchorQuery.data); }, [antiAnchorQuery.data]);
+  useEffect(() => { setLocalTrizSolutions(trizQuery.data); }, [trizQuery.data]);
+  useEffect(() => { setLocalSubsystems(subsystemsQuery.data); }, [subsystemsQuery.data]);
+  useEffect(() => { setLocalScamperVariants(scamperQuery.data); }, [scamperQuery.data]);
+  useEffect(() => { setLocalAlternatives(alternativesQuery.data); }, [alternativesQuery.data]);
 
   // Use local state as the working data (allows optimistic updates)
   const routes = localRoutes;
@@ -221,11 +195,26 @@ export default function Create() {
   const convergenceLoop = useConvergenceLoop({
     projectId: id,
     contradictions: contradictionsQuery.data ?? [],
-    alternatives: alternatives.map((a) => ({ id: a.id, name: a.name, mechanism: a.mechanism })),
+    alternatives: alternatives.map((a) => ({
+      id: a.id,
+      name: a.name,
+      mechanism: a.mechanism,
+      source: a.source,
+      resolves_contradiction_ids: a.keyAssumptionIds ?? [],
+    })),
     mission: briefMission,
     constraints: constraintStrings,
     kpis: kpiStrings,
   });
+  // Auto-trigger Phase B when Phase A converged and alternatives become available
+  const phaseAConverged = convergenceLoop.state.phase === 'A' && convergenceLoop.state.status === 'converged';
+  useEffect(() => {
+    if (phaseAConverged && alternatives.length > 0 && (contradictionsQuery.data?.length ?? 0) > 0) {
+      convergenceLoop.startExploration(); // will auto-detect Phase B
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phaseAConverged, alternatives.length]);
+
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
   const [conceptRoutes, setConceptRoutes] = useState<ConceptRoute[]>([]);
   const [subsystemView, setSubsystemView] = useState<"diagram" | "list">("diagram");
@@ -242,10 +231,9 @@ export default function Create() {
   // Track anti-anchor generated status from data
   useEffect(() => {
     if (!antiAnchorQuery.isLoading) {
-      const next = routes.length > 0;
-      setAntiAnchorGenerated((prev) => (prev === next ? prev : next));
+      setAntiAnchorGenerated(routes.length > 0);
     }
-  }, [routes.length, antiAnchorQuery.isLoading]);
+  }, [routes, antiAnchorQuery.isLoading]);
 
   // ── Computed: Multi-Solution Adoption State from DB (fallback to mock) ──
   const adoptionState: MultiSolutionAdoptionState = useMemo(() => {
@@ -373,10 +361,18 @@ export default function Create() {
     }
   };
 
-  const setTrizStatus = (tsId: string, status: TrizActionStatus) => {
-    // Optimistic local update
-    setLocalTrizSolutions((prev) => prev.map((t) => (t.id === tsId ? { ...t, status } : t)));
-    updateTrizSolution.mutate({ id: tsId, status });
+  // TRIZ state transition guard — preserve traceability of human edits
+  const TRIZ_VALID_TRANSITIONS: Record<TrizActionStatus, TrizActionStatus[]> = {
+    pending:  ['adopted', 'skipped', 'edited'],
+    adopted:  ['pending', 'skipped'],
+    skipped:  ['pending'],
+    edited:   ['adopted', 'skipped'],  // edited → pending blocked (traceability)
+  };
+  const setTrizStatus = (tsId: string, next: TrizActionStatus) => {
+    const current = localTrizSolutions.find((t) => t.id === tsId)?.status;
+    if (current && !TRIZ_VALID_TRANSITIONS[current].includes(next)) return;
+    setLocalTrizSolutions((prev) => prev.map((t) => (t.id === tsId ? { ...t, status: next } : t)));
+    updateTrizSolution.mutate({ id: tsId, status: next });
   };
   const toggleSubsystem = (ssId: string) => {
     const ss = subsystems.find(s => s.id === ssId);
@@ -431,6 +427,37 @@ export default function Create() {
     });
     resetSsForm();
     setEditingSubsystemId(null);
+  };
+  const deleteAntiAnchorRoute = (routeId: string) => {
+    const idx = localRoutes.findIndex(r => r.id === routeId);
+    if (idx === -1) return;
+    const removed = localRoutes[idx];
+
+    // Immediately delete from DB and optimistic UI
+    setLocalRoutes(prev => prev.filter(r => r.id !== routeId));
+    deleteAntiAnchorRouteMut.mutate({ id: routeId });
+
+    toast(`已刪除「${removed.name}」`, {
+      duration: 5000,
+      action: {
+        label: "復原",
+        onClick: () => {
+          // Undo = re-insert the removed item
+          createAntiAnchorRoute.mutate({
+            project_id: id!,
+            name: removed.name,
+            description: removed.description || undefined,
+            is_non_typical: true,
+            source: 'ai',
+          });
+          setLocalRoutes(prev => {
+            const next = [...prev];
+            next.splice(Math.min(idx, next.length), 0, removed);
+            return next;
+          });
+        },
+      },
+    });
   };
   const deleteSubsystem = (ssId: string) => {
     setLocalSubsystems(prev => prev.filter(s => s.id !== ssId));
@@ -644,11 +671,16 @@ export default function Create() {
             {routes.map((r, i) => (
               <Card key={r.id} className="overflow-hidden border-l-[3px] border-l-accent">
                 <CardContent className="p-5 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs font-mono">路線 {i + 1}</Badge>
-                    <Badge variant="secondary" className="text-[10px] gap-1">
-                      <Sparkles className="h-2.5 w-2.5" /> AI
-                    </Badge>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs font-mono">路線 {i + 1}</Badge>
+                      <Badge variant="secondary" className="text-[10px] gap-1">
+                        <Sparkles className="h-2.5 w-2.5" /> AI
+                      </Badge>
+                    </div>
+                    <button onClick={() => deleteAntiAnchorRoute(r.id)} className="p-1 rounded hover:bg-destructive/10" title="刪除此路線">
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </button>
                   </div>
                   <p className="text-sm font-medium">{r.name}</p>
                   <p className="text-sm text-muted-foreground leading-relaxed">{r.description}</p>
@@ -678,6 +710,14 @@ export default function Create() {
   // ── Step 2: TRIZ Convergence (AI Autonomous) ──
   function renderTrizConvergence() {
     const { state, startExploration, confirmSeverity, forceContinue, retryBranch } = convergenceLoop;
+    const contradictionsList = contradictionsQuery.data ?? [];
+    const canStartConvergence = !!id && contradictionsList.length > 0;
+
+    const handleStartExploration = () => {
+      if (!id) { toast.error("缺少專案 ID"); return; }
+      if (contradictionsList.length === 0) { toast.warning("尚未識別任何矛盾，請先在「深度探索」階段完成矛盾識別"); return; }
+      startExploration();
+    };
 
     return (
       <div className="space-y-5">
@@ -685,7 +725,7 @@ export default function Create() {
         {(state.health === 'critical' || state.health === 'circular') && (
           <ArchitectureHaltOverlay
             health={state.health}
-            onGoBack={() => navigate(`/projects/${id}/brief`)}
+            onGoBack={() => navigate(`/projects/${id}/task-definition`)}
             onForceContinue={forceContinue}
           />
         )}
@@ -716,9 +756,17 @@ export default function Create() {
                 </CardContent>
               </Card>
             ))}
-            <Button variant="outline" size="sm" onClick={startExploration} className="text-xs gap-1.5">
-              <Sparkles className="h-3.5 w-3.5" />
-              重新執行 AI 矛盾收斂
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleStartExploration}
+              disabled={state.status === 'exploring'}
+              className="text-xs gap-1.5"
+            >
+              {state.status === 'exploring'
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <Sparkles className="h-3.5 w-3.5" />}
+              {state.status === 'exploring' ? '收斂分析中...' : '重新執行 AI 矛盾收斂'}
             </Button>
           </div>
         )}
@@ -730,23 +778,57 @@ export default function Create() {
                 <Sparkles className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">AI 矛盾收斂探索</h3>
+                <h3 className="text-lg font-semibold">AI 矛盾空間健康度分析</h3>
                 <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-                  AI 將自動對每條矛盾進行深度探索（TC / PC / SF 三路徑），
-                  掃描二次矛盾並分級（Fatal / Major / Minor），
-                  持續迴圈直到所有 Fatal 和 Major 矛盾完全收斂。
+                  AI 將分析矛盾間的交互衝突、循環依賴與覆蓋盲區，
+                  確認問題空間定義完善。方案建立後（Step 5）會自動執行完整收斂掃描。
                 </p>
               </div>
-              <Button onClick={startExploration} size="lg" className="gap-2">
-                <Sparkles className="h-4 w-4" />
-                啟動 AI 矛盾收斂探索
-                <Badge variant="secondary" className="text-[10px] ml-1">Fully Auto</Badge>
+              <Button
+                onClick={handleStartExploration}
+                disabled={state.status === 'exploring'}
+                size="lg"
+                className="gap-2"
+              >
+                {state.status === 'exploring'
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <Sparkles className="h-4 w-4" />}
+                {state.status === 'exploring' ? 'AI 收斂分析中...' : '啟動 AI 矛盾收斂探索'}
+                {state.status !== 'exploring' && (
+                  <Badge variant="secondary" className="text-[10px] ml-1">Fully Auto</Badge>
+                )}
               </Button>
+              {!canStartConvergence && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  前置條件：需先在「深度探索」階段完成矛盾識別
+                </p>
+              )}
             </CardContent>
           </Card>
         )}
 
-        {/* Exploring / Converged: show dashboard + graph + branches */}
+        {/* Exploring: show loading banner + dashboard + graph + branches */}
+        {state.status === 'exploring' && state.iteration === 0 && (
+          <Card className="border-primary/50 bg-primary/5">
+            <CardContent className="p-6 flex items-center gap-4">
+              <div className="relative">
+                <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                <Sparkles className="h-4 w-4 text-primary absolute -top-1 -right-1 animate-pulse" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold">
+                  {state.phase === 'A' ? 'AI 正在分析矛盾空間健康度...' : 'AI 正在執行參數交叉分析...'}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {state.phase === 'A'
+                    ? `分析 ${contradictionsList.length} 條矛盾的交互衝突、循環依賴與覆蓋盲區`
+                    : `掃描 ${contradictionsList.length} 條矛盾 x ${alternatives.length} 個方案，檢測二次矛盾與架構衝突`}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {state.status !== 'idle' && (
           <>
             <ConvergenceDashboard state={state} />

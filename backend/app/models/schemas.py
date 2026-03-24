@@ -3,7 +3,7 @@
 Maps to the AI Agent Architecture §1.1 Agent roles and §4.4 Artifact states.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # ---------------------------------------------------------------------------
@@ -201,14 +201,11 @@ class CldEdge(BaseModel):
     to_node: str
     polarity: str = "+"
 
-class CldBreakpoint(BaseModel):
-    node_id: str
-    reason: str
 
 class CldGenerationResponse(BaseModel):
     nodes: list[CldNode]
     edges: list[CldEdge]
-    breakpoints: list[CldBreakpoint]
+    breakpoints: list[str]
 
 
 # ---------------------------------------------------------------------------
@@ -224,13 +221,13 @@ class AntiAnchorRequest(BaseModel):
 
 class AntiAnchorRoute(BaseModel):
     name: str
-    description: str = ""
+    description: str
     is_non_typical: bool = True
     rationale: str = ""
 
 
 class AntiAnchorResponse(BaseModel):
-    routes: list[AntiAnchorRoute] = Field(validation_alias="alternatives")
+    routes: list[AntiAnchorRoute]
 
 
 # ---------------------------------------------------------------------------
@@ -360,27 +357,69 @@ class ActionSuggestResponse(BaseModel):
 # Contradiction Convergence (Step 5a-6)
 # ---------------------------------------------------------------------------
 
+class ConvergenceAlternativeInput(BaseModel):
+    """Rich alternative payload for convergence scanning."""
+    id: str
+    name: str
+    mechanism: str
+    source: str = ""  # triz_tc / triz_pc / triz_sf / scamper / manual / ai_integrated
+    resolves_contradiction_ids: list[str] = Field(default_factory=list)
+
+
+class ConvergenceContradictionInput(BaseModel):
+    """Rich contradiction payload for convergence scanning."""
+    id: str
+    natural_description: str
+    severity: str  # fatal / major / minor
+    resolved: bool = False
+    type: str | None = None  # TC or PC
+    improving_param: int | None = None  # TRIZ 39-param number
+    worsening_param: int | None = None
+    engineering_statement: str = ""
+    physical_contradiction: str = ""
+
+
 class ConvergenceScanRequest(BaseModel):
     project_id: str
-    alternatives: list[dict]
-    contradictions: list[dict]
+    alternatives: list[ConvergenceAlternativeInput] = Field(default_factory=list)
+    contradictions: list[ConvergenceContradictionInput]
     mission: str = ""
     constraints: list[str] = Field(default_factory=list)
     kpis: list[str] = Field(default_factory=list)
+    phase: str = "B"  # "A" = contradiction-only, "B" = full cross-check
 
 
 class SecondaryContradiction(BaseModel):
     description: str
     severity: str  # fatal, major, minor
-    source_alternative: str
+    source_alternative: str = ""  # empty in Phase A (no alternatives)
+    type: str = "TC"  # TC or PC
+    improving_param: int | None = None
+    worsening_param: int | None = None
+    reasoning: str = ""
 
 
 class ConvergenceScanResponse(BaseModel):
     new_contradictions: list[SecondaryContradiction]
-    convergence_score: float
+    convergence_score: float  # 0-100 integer scale
     architecture_health: str  # healthy, warning, critical
     force_pause: bool = False
     pause_reason: str = ""
+    reasoning_trace: str = ""
+    phase: str = "B"  # echo back which phase produced this result
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_keys(cls, values):
+        # Accept LLM output key 'secondary_contradictions' -> 'new_contradictions'
+        if isinstance(values, dict):
+            if "secondary_contradictions" in values and "new_contradictions" not in values:
+                values["new_contradictions"] = values.pop("secondary_contradictions")
+            # Accept 0-1 scale and normalise to 0-100
+            score = values.get("convergence_score", 0)
+            if isinstance(score, (int, float)) and score <= 1.0:
+                values["convergence_score"] = round(score * 100)
+        return values
 
 
 # ---------------------------------------------------------------------------
@@ -442,6 +481,8 @@ class ContradictionFormalizeResponse(BaseModel):
     improving_param: int | None = None
     worsening_param: int | None = None
     physical_contradiction: str | None = None
+    pc_attribute_a: str | None = None
+    pc_attribute_not_a: str | None = None
     type: str = "TC"  # TC or PC
     confidence: float = Field(ge=0, le=1, default=0.7)
 
