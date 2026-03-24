@@ -202,10 +202,15 @@ class CldEdge(BaseModel):
     polarity: str = "+"
 
 
+class CldBreakpoint(BaseModel):
+    node_id: str
+    reason: str
+
+
 class CldGenerationResponse(BaseModel):
     nodes: list[CldNode]
     edges: list[CldEdge]
-    breakpoints: list[str]
+    breakpoints: list[CldBreakpoint]
 
 
 # ---------------------------------------------------------------------------
@@ -221,13 +226,13 @@ class AntiAnchorRequest(BaseModel):
 
 class AntiAnchorRoute(BaseModel):
     name: str
-    description: str
+    description: str = ""
     is_non_typical: bool = True
     rationale: str = ""
 
 
 class AntiAnchorResponse(BaseModel):
-    routes: list[AntiAnchorRoute]
+    routes: list[AntiAnchorRoute] = Field(validation_alias="alternatives")
 
 
 # ---------------------------------------------------------------------------
