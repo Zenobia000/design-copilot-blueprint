@@ -46,7 +46,7 @@ export const briefValidationSchema = z.object({
   mission: z
     .string()
     .trim()
-    .min(10, "Mission 為必填項，且需至少 10 個字元。")
+    .min(10, "Mission 為必填項，且需至少 10 個字元。"),
   constraints: z
     .array(
       z.object({
