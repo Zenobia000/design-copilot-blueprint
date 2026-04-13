@@ -12,6 +12,9 @@
 ## Extended Documents
 
 - [E3x--state-machine](E3x--state-machine.md) — 狀態機與 R&R
+- [E3x--methodology-overview](E3x--methodology-overview.md) — 整合方法論總覽 (E2E) ← from 00-discover
+- [E3x--first-principles-analysis](E3x--first-principles-analysis.md) — 第一性原理批判分析 ← from 00-discover
+- [E3x--functional-specification](E3x--functional-specification.md) — 功能規格書 (PRD §5-§12 提取) ← from 00-discover
 
 ## Architecture (SA 視角)
 
@@ -30,6 +33,11 @@
 ## Diagrams
 
 - [triz-to-scamper-flow](diagrams/triz-to-scamper-flow.md) — 雙軌分析 → 候選方案決策中心
+
+## Scripts / Tools
+
+- [build_bd_pitch.py](scripts/build_bd_pitch.py) — BD 簡報 PowerPoint 生成腳本
+- [RD_Copilot_BD_Pitch_v1.pptx](scripts/RD_Copilot_BD_Pitch_v1.pptx) — BD 簡報 PowerPoint 檔案
 
 ## WBS / Project Schedule
 
