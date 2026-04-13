@@ -1,5 +1,12 @@
 # Create 頁面 UX 設計規格
 
+> **v8.1 (2026-04-13)**：**Tab ① ConvergenceDashboard 移除**。
+> - Phase A 退役後，Tab ① 已無全域收斂數據來源。Dashboard 顯示的 `Confidence 0% / 0 節點 / 0/0 Fatal` 皆為初始值，對 RD 無參考價值。
+> - 品質閘門由每張 `LayeredSolutionCard` 的 **L1 critic badge** 承擔（per-card 粒度）。
+> - `ConvergenceDashboard` 僅在**決策中心 Phase B 執行後**顯示（`convergenceLoop.state.phase === 'B'`）。
+> - Tab ① 區塊 A 標題從「矛盾總覽 + Phase A 健康度」簡化為「矛盾總覽」。
+> - `trizLayeredMode` feature flag 預設值改為 `true`，舊版 TC/PC/SF 三路徑候選 UI 移除。
+>
 > **v8 (2026-04-09)**：**Phase A（矛盾空間健康度）退役**。
 > - 第一性原理分析：Phase A 的六項職責已被 v7 的 L1 critic（per-card 品質閘門）、severity-driven L2 trigger、differential_analysis（per-LTS 推薦路線）、Phase B `crossLtsRedundancyWarnings`（跨矛盾去重）全面覆蓋。Phase A 的全域 `convergence_score` 閘門壓縮 N 個矛盾為一個數字，反而造成資訊損失。
 > - Tab ① 從「先 Phase A 掃描 → 再生成 TRIZ」的兩步流程，簡化為**一鍵直出分層 drill-down 診斷報告**。
@@ -100,8 +107,8 @@
 │  ④ 統一評估                                                        │
 │  [ MUST 快篩 (M1-M6) ]  →  [ Pre-CAD 審查 (5D) ]                 │
 │                                                                    │
-│  ⑤ 收斂監控（摺疊）— v8: Phase A 退役                                │
-│  （Phase A Score 已由每張 LayeredSolutionCard 的 critic badge 取代） │
+│  ⑤ 收斂監控 — v8.1: 僅在決策中心 Phase B 後顯示                        │
+│  （Tab ① 不再顯示 ConvergenceDashboard；per-card critic badge 取代） │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -151,16 +158,14 @@
 
 > 對應架構：`Forward_TRIZ_Solver_Architecture.md` + `TRIZ_Layered_DrillDown_Optimization.md` v1.0。**關鍵觀念轉變**：TC/PC/SF 不再是「三選一候選」，而是同一矛盾的三層診斷鏡 — L1 現象層（必跑）、L2 根因層（由 critic 或 severity 條件觸發）、L3 結構層（必跑平行旁路）。RD 收到的是一份 `LayeredTrizSolution` 分層報告，不是並列 pending 候選池。
 
-##### 區塊 A：矛盾總覽 + Phase A 健康度
+##### 區塊 A：矛盾總覽
 
 | 元素 | 互動 | 觸發 / API |
 |------|------|------|
-| ~~[啟動 Phase A]~~ | ~~矛盾健康度分析~~ | v8 退役：L1 critic per-card + differential_analysis 取代，一鍵直出分層診斷 |
 | 矛盾列表 | 每矛盾一列，展開成「分層診斷卡」（見區塊 B） | 唯讀 |
 | severity badge | `fatal` / `major` / `minor`，決定 L2 預設觸發策略 | 唯讀 |
-| 收斂 Dashboard | confidence / health / fatal·major·minor | 唯讀 |
+| ~~收斂 Dashboard~~ | ~~confidence / health / fatal·major·minor~~ | v8 移除：Phase A 退役後 Tab ① 無全域收斂數據來源；per-card L1 critic badge 取代。ConvergenceDashboard 僅在決策中心 Phase B 執行後顯示 |
 | quick_mode toggle | 專案層級開關：minor 矛盾只跑 L1+L3，L2 預設跳過 | setQuickMode() |
-| 人類審核 | converged/halted 時 → 確認或重試 | setReviewConfirmed() |
 
 ##### 區塊 B：LayeredTrizSolution 分層診斷卡（每矛盾一張）
 
@@ -342,13 +347,14 @@
 | [📤 推升簽核估計] | Pre-CAD 通過後，把高 confidence 的估計批次推升至 learned | POST /spatial/learned-components ×N |
 | Phase Gate 2 | ≥1 方案 overallPass → 進入 CAD | 自動 |
 
-### ⑤ 收斂監控（摺疊面板）
+### ⑤ 收斂監控
 
 | 元素 | 互動 | 說明 |
 |------|------|------|
-| ~~正向 Phase A~~ | ~~Score / Health / Fatal·Major·Minor~~ | v8 退役：L1 critic per-card + differential_analysis 取代 |
+| ~~Tab ① ConvergenceDashboard~~ | ~~Confidence / Health / Fatal·Major·Minor~~ | v8.1 移除：Phase A 退役後 Tab ① 無數據來���。ConvergenceDashboard 僅在決策中心 Phase B 執行後顯示 |
+| 決策中心 ConvergenceDashboard | Confidence / Health / Fatal·Major·Minor | Phase B 掃描完成後才渲染（`phase === 'B' && status !== 'idle'`） |
 | Risk Register | minor 清單 | 展開 |
-| 反向無 Phase A | 創意工具不做收斂分析 | — |
+| 反向無收斂分析 | 創意工具不做收斂分析 | — |
 
 ---
 

@@ -37,7 +37,7 @@ export const featureFlags = {
    *   3. Docs + prompts aligned
    *   4. Full switch — flag default on, legacy /triz/solve stays as primitive
    */
-  trizLayeredMode: readBool("VITE_TRIZ_LAYERED_MODE", false),
+  trizLayeredMode: readBool("VITE_TRIZ_LAYERED_MODE", true),
 } as const;
 
 export type FeatureFlags = typeof featureFlags;

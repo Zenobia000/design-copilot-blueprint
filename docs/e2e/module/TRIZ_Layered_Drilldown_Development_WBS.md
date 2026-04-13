@@ -1,6 +1,6 @@
 # TRIZ 分層 Drill-Down 開發 WBS（Create · Tab ①）
 
-> **版本**：1.5 | **日期**：2026-04-09 | **狀態**：Backend 100 % + FE 元件 + pages 整合 + 決策中心第二/三眼 + F2 hand-off 消費 + Phase B directive wiring 全部落地 | **Owner**：Create FE + TRIZ Solver Backend
+> **版本**：1.6 | **日期**：2026-04-13 | **狀態**：v1.5 + feature flag 預設 on + 舊版 TC/PC/SF UI 移除 + type filter 移除 + Tab ① ConvergenceDashboard 移除 | **Owner**：Create FE + TRIZ Solver Backend
 
 ### 完成度 Dashboard (v1.5)
 
@@ -97,7 +97,7 @@
 | 1 | 升級模式 | **新增 `solve_triz_layered` orchestrator**，既有 `_solve_tc` / `_solve_pc` / `_solve_sf` primitive 不動 | §9.1 遷移路徑；舊 `/triz/solve` 端點保留 |
 | 2 | 層級必跑 / 條件跑 | **L1 必跑、L3 必跑平行旁路、L2 條件跑** | L2 觸發條件 = critic ∨ severity≥major ∨ principle_hits≤2 ∨ RD 手動 ∨ force_l2 |
 | 3 | quick_mode 策略 | `quick_mode=on` + `severity=minor` → **強制跳過 L2** | 避免微調矛盾被過度深挖 |
-| 4 | Feature flag | **`triz_layered_mode` 預設 off**，§9.3 四階段灰度 | 舊 `/triz/solve` 行為在 flag off 時完全不變 |
+| 4 | Feature flag | **`triz_layered_mode` 預設 on**（v1.6 全面切換）；舊版 TC/PC/SF UI 已移除 | 舊 `/triz/solve` backend endpoint 保留為 primitive，但前端不再呼叫 |
 | 5 | Phase B 衝突判定 | **同 `contradiction_id` + 同 `lts_id` → SKIP**；跨矛盾衝突仍 check | 對應 §8.3 偽代碼；移除「同矛盾多路徑警告」 |
 | 6 | Concept Route 擴展 | 新增 `type=layered`，`layered_solution` 欄位對齊 `TRIZ_Multi_Solution_Adoption_Strategy.md` v1.1 §4.2 | `single` / `composite` 保留 |
 | 7 | 命名解耦 | 本 WBS 的 **L1/L2/L3** 僅指 F1 分析層，與 F2 的 System/Module/Component 完全隔離 | 配 grep lint 規則 |
@@ -175,7 +175,7 @@ F2 subsystem-suggestions 以 adopted_route 為 related_contradictions 主綁定
 | 1.1 | 從 `TRIZ_Layered_DrillDown_Optimization.md` §5 匯出 **Pydantic** 對齊的 `LayeredTrizSolution` 型別：`L1_surface` / `L2_root_cause` / `L3_structural_check` / `differential_analysis` / `phase_b_directive` | 型別定義 PR；與 §5 YAML 範例雙向可追溯 | — | ✅ `backend/app/models/schemas.py:511-669`（+ TS mirror `src/types/layeredTriz.ts`）。同時清理了前一輪 scaffold 殘留在檔尾的 duplicate `L1Surface/L2RootCause/L3StructuralCheck/DeepenLink/DifferentialAnalysis/LayeredTrizSolution` 區塊（shadowing 導致 `engineering_statement` 欄位混亂） |
 | 1.2 | **layer_role** 枚舉凍結：`phenomenon` / `root_cause` / `structural_lens`；**depth_indicator** 字串集合凍結：`trade-off 改良` / `根因突破` / `功能鏈缺陷修補` | 常量表 + lint/單測禁止漂移 | 1.1 | ✅ `schemas.py:525-531` `LayerRole` / `DepthIndicator` / `SeparationType` / `LayerStatus` Literals |
 | 1.3 | **L2 觸發條件表**（§4.2）寫入檢查清單：(a) critic 判定 (b) severity ≥ major (c) principle_hits ≤ 2 (d) RD 手動 (e) force_l2 param | Review checklist；prompt 與 FE 驗證一致 | 1.1 | ✅ 5 分支由 `_should_trigger_l2` 實作 (`triz_solver.py:_should_trigger_l2`)；7 個測試覆蓋（`TestShouldTriggerL2`） |
-| 1.4 | **feature flag** `triz_layered_mode` 新增（backend config + FE runtime flag），預設 **off**；確保舊 `POST /triz/solve` 行為不變 | flag 文件 + 開關測試 | — | ✅ `src/config/featureFlags.ts::featureFlags.trizLayeredMode`（從 `VITE_TRIZ_LAYERED_MODE` 讀取，預設 off）；backend 端兩個 endpoint 並存且 `/triz/solve` 行為未改動 |
+| 1.4 | **feature flag** `triz_layered_mode`（backend config + FE runtime flag）；v1.6 預設 **on**，舊版 TC/PC/SF 三路徑 UI 已移除 | flag 文件 + 開關測試 | — | ✅ `src/config/featureFlags.ts::featureFlags.trizLayeredMode`（從 `VITE_TRIZ_LAYERED_MODE` 讀取，v1.6 預設 on）；舊版 else 分支 + legacy `trizSolve` 呼叫路徑已從 `Create.tsx` 移除；backend `/triz/solve` endpoint 保留為 primitive |
 | 1.5 | Concept Route 資料模型擴展：`type` 新增 `layered` 枚舉值；`layered_solution` 欄位對齊 `TRIZ_Multi_Solution_Adoption_Strategy.md` v1.1 §4.2 | Pydantic + TS 同步；schema migration 文件 | 1.1 | ✅ `src/types/conceptRoute.ts::ConceptRoute.type` 新增 `'layered'` + `LayeredConceptRouteMeta`；DB migration `supabase/migrations/010_triz_layered_drilldown.sql` 含 `concept_routes.layered_solution` JSONB + CHECK constraint |
 | 1.6 | **命名解耦**：本 WBS 的 **L1/L2/L3** 僅指 F1 分析層，與 F2 的 System/Module/Component 樹階完全隔離（對應 F2 SA §8.1.1） | 文件補充一行提醒 + grep lint 規則 | 1.1 | ✅ `triz_solver.py` layered 區塊 header 已註明；schema 使用 `L1Surface/L2RootCause/L3StructuralCheck` 與 `SuggestedSubsystem` 名稱完全不衝突 |
 
@@ -247,7 +247,7 @@ F2 subsystem-suggestions 以 adopted_route 為 related_contradictions 主綁定
 |---------|--------|-------------------|------|------|
 | 7.1 | 沿用既有 `ConvergenceDashboard` + `HumanReviewPanel`；新增矛盾列表每列顯示 **severity badge**（fatal/major/minor） | UX v7 區塊 A 表格 | — | ✅ `LayeredSolutionCard` header 於 `pages/Create.tsx` 分層區塊渲染；`SEVERITY_BADGE` 色票生效 |
 | 7.2 | **quick_mode toggle**（專案層級 switch）：持久化到 project settings；呼叫 `solve-layered` 時帶 `quick_mode` | 切換即時生效；L2 狀態顯示「quick_mode 跳過 ⊘」 | 6.2 | ✅ `pages/Create.tsx::trizQuickMode` state + section header 的 `<input type="checkbox">` toggle；`handleAiGenTriz` 將 `quick_mode` 傳入 `trizSolveLayered` |
-| 7.3 | `[啟動 Phase A]` / `[重新執行]` 對接新的 `solve-layered` endpoint（flag on 時） | flag off 時回退舊 endpoint | 1.4, 6.1 | ✅ `handleAiGenTriz` 內新增 `if (featureFlags.trizLayeredMode)` 分支：flag on 時呼叫 `trizSolveLayered` 並填 `layeredSolutions` state；flag off 時走 legacy `trizSolve` 多路徑生成 |
+| 7.3 | `[AI 產出分層 drill-down 診斷]` 直接呼叫 `solve-layered` endpoint | v1.6：flag 預設 on，舊版 UI + legacy trizSolve 路徑已移除；type filter 移除，所有矛盾皆可進 orchestrator | 1.4, 6.1 | ✅ `handleAiGenTriz` 直接呼叫 `trizSolveLayered`（不再有 feature flag 分支）；移除 `c.type === 'TC'||'PC'||'SF'` filter — backend `_run_l1` 自帶缺參數降級邏輯 |
 | 7.4 | 每矛盾展開時 **lazy fetch** 對應 LayeredTrizSolution（避免一次載入全部） | 前端測試：展開一筆才 fetch | 6.1 | ⏳ 目前一次 Promise.all 所有矛盾；未來優化項 |
 
 ---
@@ -312,7 +312,7 @@ F2 subsystem-suggestions 以 adopted_route 為 related_contradictions 主綁定
 
 | 任務 ID | 工作項 | 交付物 / 完成準則 | 依賴 | 狀態 |
 |---------|--------|-------------------|------|------|
-| 12.1 | **Feature flag 灰度** 四階段（§9.3）：前置 / 內部灰度 / 文件對齊 / 全面切換；每階段 exit criteria | Runbook + Rollback plan | 1.4 | ✅ `docs/e2e/module/TRIZ_Layered_Rollout_Runbook.md` v1.0：前置檢查清單、四階段 S1–S4、Metrics/SLO 表、常見問題排查、rollback 步驟 |
+| 12.1 | **Feature flag 灰度** 四階段（§9.3）→ v1.6 已全面切換（S4 完成）：flag 預設 on、舊版 UI 移除、type filter 移除、Tab ① ConvergenceDashboard 移除 | Runbook + Rollback plan | 1.4 | ✅ `docs/e2e/module/TRIZ_Layered_Rollout_Runbook.md` v1.0 + v1.6 全面切換：`featureFlags.ts` 預設 true；`Create.tsx` 舊版 TC/PC/SF else 分支刪除（~240 行）；legacy `trizSolve` import 移除 |
 | 12.2 | **黃金案例回歸**：§7 e-bike 馬達散熱（#21 × #17）案例紙上流程可跑通，L1/L2/L3/differential 輸出符合 §7.2–§7.5 | CI 黃金測試 | 3.x, 4.x, 5.x | ✅ `tests/test_triz_layered.py::TestSolveTrizLayeredGoldenCase::test_ebike_motor_cooling` — 覆蓋 id / L1 4 建議 / critic trigger / L2 deepen_link / L3 bridge / recommended_route=[L2,L3] / phase_b_directive |
 | 12.3 | 後端：`solve_triz_layered` / critic / deepen_link / differential pure function 單元測試 | coverage ≥ 80% | 3.x, 4.x, 5.x | ✅ 18 個新測試（7 `TestShouldTriggerL2` + 5 `TestL1Critic` + 3 `TestDerivePcFromTc` + 3 `TestSolveTrizLayeredGoldenCase`），全部綠燈；整合 `tests/test_triz_solver.py` 29 項綠燈（2 pre-existing 失敗與本案無關） |
 | 12.4 | API **契約測試**（Pact 或 schema snapshot）：`/triz/solve-layered`、Phase B endpoint、F2 升級後的 hand-off | 破壞性更動失敗 | 6.x, 11.1 | ✅ `backend/tests/test_triz_layered_api.py` 8 項：happy path / quick_mode / 422 missing / 422 unknown severity / legacy `/triz/solve` 回歸 / schema snapshot 守門（top-level fields frozen + PhaseBDirective defaults + SeparationType enum frozen） |

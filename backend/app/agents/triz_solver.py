@@ -9,6 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from app.agents.base import call_llm_json
+from app.core.config import settings
 from app.prompts.triz_solver import (
     TRIZ_SOLVER_SYSTEM,
     TRIZ_TC_INSTANTIATION,
@@ -102,7 +103,7 @@ def _solve_tc(req: TrizLookupRequest) -> TrizLookupResponse:
         improving=improving,
         worsening=worsening,
     )
-    raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt)
+    raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
     try:
         data = json.loads(raw) if raw and raw.strip() else {}
     except json.JSONDecodeError:
@@ -137,7 +138,7 @@ def _solve_pc_base(req: TrizLookupRequest) -> TrizLookupResponse:
         physical_contradiction=req.physical_contradiction or req.natural_description,
         triz_context=triz_context,
     )
-    raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt)
+    raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
     try:
         data = json.loads(raw) if raw and raw.strip() else {}
     except json.JSONDecodeError:
@@ -180,7 +181,7 @@ def _solve_pc_with_hint(req: TrizLookupRequest) -> TrizLookupResponse:
         derived_parameter=req.derived_parameter or "",
         principles_context=principles_context,
     )
-    raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt)
+    raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
     try:
         data = json.loads(raw) if raw and raw.strip() else {}
     except json.JSONDecodeError:
@@ -278,7 +279,7 @@ def analyze_sufield(req: SuFieldRequest) -> SuFieldResponse:
         current_issues="\n".join(f"- {i}" for i in req.current_issues) or "（未指定）",
         triz_context=triz_context,
     )
-    raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt)  # no max_tokens → uses config default (16384)
+    raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
     empty_fallback = SuFieldResponse(
         su_field={"S1": req.substance_1 or "", "S2": req.substance_2 or "", "F": req.field_type or ""},
         system_state="unknown",
@@ -366,7 +367,7 @@ def _l1_critic(
         l1_suggestions=suggestions_block,
     )
     try:
-        raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt)
+        raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
         data = json.loads(raw) if raw and raw.strip() else {}
     except (json.JSONDecodeError, Exception) as exc:
         logger.warning("L1 critic LLM call failed: %s — defaulting to trigger_l2=False", exc)
@@ -406,7 +407,7 @@ def _derive_pc_from_tc(
         worsening_name=worsening_name,
     )
     try:
-        raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt)
+        raw = call_llm_json(TRIZ_SOLVER_SYSTEM, prompt, model=settings.fast_model)
         data = json.loads(raw) if raw and raw.strip() else {}
     except (json.JSONDecodeError, Exception) as exc:
         logger.warning("deepen_link LLM call failed: %s", exc)

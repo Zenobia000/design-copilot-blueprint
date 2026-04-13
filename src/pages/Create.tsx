@@ -89,12 +89,11 @@ import type { Json } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useTrackAssumptions } from "@/hooks/api/useTrack";
 import { useBrief, useConstraints, useKpis } from "@/hooks/api/useBrief";
-import { antiAnchorGenerate, trizSolve, trizSolveLayered, scamperTransform, riskAnalyze, mustEvaluate, validationPassportGenerate, scamperSpatialOverlay, spatialComponentOverride, spatialLearnedComponent } from "@/lib/api";
+import { antiAnchorGenerate, trizSolveLayered, scamperTransform, riskAnalyze, mustEvaluate, validationPassportGenerate, scamperSpatialOverlay, spatialComponentOverride, spatialLearnedComponent } from "@/lib/api";
 import type { LayeredTrizSolution, TrizSeverity, AdoptedLayerId } from "@/types/layeredTriz";
 import { LayeredSolutionCard } from "@/components/create/LayeredSolutionCard";
 import type { AdoptionMode } from "@/components/create/LayeredSolutionCard";
 import type { LayeredConceptRouteMeta, LayeredLayerSnapshot } from "@/types/conceptRoute";
-import { featureFlags } from "@/config/featureFlags";
 import { hashContracts, isContractDriftedSinceConfirm } from "@/lib/subsystemHash";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/hooks/api/useQueryConfig";
@@ -136,7 +135,7 @@ const RADAR_COLORS = [
 
 const STEPS = [
   { label: "反向探索 Anti-Anchor", shortLabel: "Anti-Anchor", description: "從約束出發，AI 產出非典型架構概念，每條自帶 Validation Passport", zone: "reverse" as const },
-  { label: "正向分析：TRIZ 解矛盾", shortLabel: "TRIZ", description: "從矛盾出發 → TRIZ 三路徑求解 → 子系統分解 → SCAMPER 創意變形", zone: "forward" as const },
+  { label: "正向分析：TRIZ 解矛盾", shortLabel: "TRIZ", description: "從矛盾出發 → 分層 drill-down 診斷（L1 現象 / L2 根因 / L3 結構）→ 子系統分解 → SCAMPER 創意變形", zone: "forward" as const },
   { label: "正向分析：子系統定義", shortLabel: "子系統", description: "識別受矛盾影響的子系統 (System→Module→Component)，聚焦變形範圍", zone: "forward" as const },
   { label: "正向分析：SCAMPER 變形", shortLabel: "SCAMPER", description: "對每個子系統執行 7 種創意動作，產出方案候選", zone: "forward" as const },
   { label: "候選方案決策中心", shortLabel: "決策中心", description: "攤平兩條路徑的所有方案，橫向比較來源、機制、假設、驗證需求與信心等級", zone: "hub" as const },
@@ -238,7 +237,7 @@ export default function Create() {
   const [localTrizSolutions, setLocalTrizSolutions] = useState<TrizSolution[]>([]);
   // v7 (WP 7.2/7.3/8.x/9.5): layered drill-down state. Keyed by contradiction_id
   // so each contradiction maps to exactly one LayeredTrizSolution card. Only
-  // populated when `featureFlags.trizLayeredMode` is on.
+  // v7/v8 layered drill-down state. Keyed by contradiction_id.
   const [layeredSolutions, setLayeredSolutions] = useState<Record<string, LayeredTrizSolution>>({});
   // 9.2.4: Per-contradiction independent loading state
   const [solvingIds, setSolvingIds] = useState<Set<string>>(new Set());
@@ -284,7 +283,10 @@ export default function Create() {
       setLayeredSolutions(prev => ({ ...prev, [c.id]: resp.layered_solution }));
       return [c.id, resp.layered_solution];
     } catch (err) {
+      const desc = (c.naturalDescription || c.engineeringStatement || c.id).slice(0, 60);
+      const msg = err instanceof Error ? err.message : String(err);
       console.error(`trizSolveLayered failed for ${c.id}:`, err);
+      toast.error(`求解失敗：${desc}`, { description: msg.slice(0, 120) });
       setSolvingIds(prev => { const next = new Set(prev); next.delete(c.id); return next; });
       return null;
     }
@@ -622,23 +624,16 @@ export default function Create() {
     }
   };
 
-  // ── TRIZ three-path candidate generation ──
+  // ── TRIZ layered drill-down generation ──
   const handleAiGenTriz = async () => {
     if (!id) return;
-    const allContrs = contradictionsQuery.data ?? [];
-    // Only process contradictions with a valid TRIZ type (TC/PC/SF)
-    const contrs = allContrs.filter(c => c.type === 'TC' || c.type === 'PC' || c.type === 'SF');
+    const contrs = contradictionsQuery.data ?? [];
     if (contrs.length === 0) {
-      const unclassified = allContrs.length - contrs.length;
-      toast.warning(
-        unclassified > 0
-          ? `${unclassified} 條矛盾尚未分類（TC/PC/SF），請先在「深度探索」的矛盾識別中完成 AI 識別`
-          : "尚未識別任何矛盾，請先在「深度探索」階段完成矛盾識別"
-      );
+      toast.warning("尚未識別任何矛盾，請先在「深度探索」階段完成矛盾識別");
       return;
     }
-    // v8 client-side pre-check (replaces Phase A's "well-formed contradiction" validation).
-    // Non-blocking toast — L1 critic will catch and badge these anyway.
+    // v8 client-side pre-check (non-blocking toast).
+    // Backend _run_l1 degrades gracefully when params are missing (status=error, auto-trigger L2).
     const malformedTC = contrs.filter(c => c.type === 'TC' && (!c.improvingParam || !c.worseningParam));
     if (malformedTC.length > 0) {
       toast.warning(`${malformedTC.length} 條 TC 矛盾缺少改善/惡化參數，L1 矩陣查表可能不完整`);
@@ -646,130 +641,23 @@ export default function Create() {
 
     setAiLoading((p) => ({ ...p, trizGen: true }));
 
-    // ── v7 branch: layered drill-down mode ────────────────────────────────
-    // When `featureFlags.trizLayeredMode` is on, bypass the legacy per-path
-    // generation loop and call `trizSolveLayered` per contradiction. Results
-    // are stored in `layeredSolutions` keyed by contradiction_id and rendered
-    // by the LayeredSolutionCard stack in renderTrizConvergence.
-    if (featureFlags.trizLayeredMode) {
-      // WBS 7.4: use solveSingleContradiction helper (reused by per-row lazy solve).
-      // Batch mode still fires all at once for "AI 產出" button, but each
-      // contradiction updates layeredSolutions independently via the helper.
-      try {
-        setLayeredSolutions({});
-        const results = await Promise.all(contrs.map(c => solveSingleContradiction(c)));
-        const ok = results.filter(Boolean).length;
-        if (ok === 0) {
-          toast.error('TRIZ 分層求解全部失敗');
-        } else if (ok < contrs.length) {
-          toast.warning(`${ok}/${contrs.length} 條矛盾產出分層診斷`);
-        } else {
-          toast.success(`已為 ${ok} 條矛盾產出分層 drill-down 診斷`);
-        }
-      } catch (err) {
-        console.error('Layered TRIZ generation failed:', err);
-        toast.error('TRIZ 分層求解失敗');
-      } finally {
-        setAiLoading((p) => ({ ...p, trizGen: false }));
-      }
-      return;
-    }
-    // ── end layered branch ────────────────────────────────────────────────
-
+    // Layered drill-down mode: call trizSolveLayered per contradiction.
+    // Results stored in `layeredSolutions` keyed by contradiction_id.
+    // WBS 7.4: use solveSingleContradiction helper (reused by per-row lazy solve).
     try {
-      // Reset: delete all existing TRIZ solutions for this project, then clear local state
-      const { error: delErr } = await supabase
-        .from('triz_solutions')
-        .delete()
-        .eq('project_id', id);
-      if (delErr) console.warn('Failed to clear old TRIZ solutions:', delErr.message);
-      setLocalTrizSolutions([]);
-
-      const generated: TrizSolution[] = [];
-      // Route each contradiction by its type (Step 3 classification):
-      //   TC → contradiction matrix → 40 principles
-      //   PC → separation principles
-      //   SF → Su-Field 76 standard solutions
-      // Each contradiction walks its own path — NOT all three.
-      const tasks = contrs.map(async (c) => {
-        const results: TrizSolution[] = [];
-        const cType = c.type as "TC" | "PC" | "SF";
-
-        // 9.2.2: Build hint fields for child PCs (decomposition data from Explore)
-        const isChildPC = !!c.parentContradictionId;
-        const hintFields = isChildPC ? {
-          separation_principle_id: c.separationPrincipleId ?? undefined,
-          separation_category: c.separationCategory ?? undefined,
-          separation_rationale: c.separationRationale ?? undefined,
-          derived_parameter: c.derivedParameter ?? undefined,
-        } : {};
-
-        // For child PCs, synthesize physical_contradiction from pc_attribute fields
-        const pcDesc = (isChildPC && c.pcAttributeA && c.pcAttributeNotA)
-          ? `${c.derivedParameter ?? ''} 必須 ${c.pcAttributeA} 且必須 ${c.pcAttributeNotA}`
-          : (cType === "PC" ? c.physicalContradiction : undefined);
-
-        const solveResult = await trizSolve({
-          project_id: id,
-          contradiction_id: c.id,
-          natural_description: c.naturalDescription,
-          improving_param: cType === "TC" ? c.improvingParam : undefined,
-          worsening_param: cType === "TC" ? c.worseningParam : undefined,
-          physical_contradiction: pcDesc,
-          sf_substance_1: cType === "SF" ? (c as Record<string, unknown>).sfSubstance1 as string | undefined : undefined,
-          sf_substance_2: cType === "SF" ? (c as Record<string, unknown>).sfSubstance2 as string | undefined : undefined,
-          sf_field: cType === "SF" ? (c as Record<string, unknown>).sfField as string | undefined : undefined,
-          type: cType,
-          ...hintFields,
-        });
-
-        for (const s of solveResult.suggestions) {
-          const path = (s.path === "SuField" ? "SF" : s.path) as TrizPath;
-          const opt: TrizSolution = {
-            id: `triz-opt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-            contradictionId: c.id,
-            path,
-            principleNumber: s.principle_number,
-            principleName: s.principle_name,
-            suggestion: s.suggestion,
-            status: "pending" as TrizActionStatus,
-          };
-          results.push(opt);
-          createTrizSolution.mutate({
-            project_id: id,
-            contradiction_id: c.id,
-            path,
-            principle_number: s.principle_number,
-            principle_name: s.principle_name,
-            suggestion: s.suggestion,
-            status: "pending",
-          });
-        }
-        return results;
-      });
-      const allResults = await Promise.allSettled(tasks);
-      const failed: string[] = [];
-      for (let i = 0; i < allResults.length; i++) {
-        const r = allResults[i];
-        if (r.status === "fulfilled") {
-          generated.push(...r.value);
-        } else {
-          const desc = (contrs[i].engineeringStatement || contrs[i].naturalDescription || '').slice(0, 40);
-          failed.push(`${contrs[i].type}: ${desc}`);
-        }
+      setLayeredSolutions({});
+      const results = await Promise.all(contrs.map(c => solveSingleContradiction(c)));
+      const ok = results.filter(Boolean).length;
+      if (ok === 0) {
+        toast.error('TRIZ 分層求解全部失敗');
+      } else if (ok < contrs.length) {
+        toast.warning(`${ok}/${contrs.length} 條矛盾產出分層診斷`);
+      } else {
+        toast.success(`已為 ${ok} 條矛盾產出分層 drill-down 診斷`);
       }
-      if (failed.length > 0) {
-        toast.warning(`${failed.length} 條矛盾求解失敗（可能缺少形式化參數）：\n${failed.join('\n')}`);
-      }
-      // Replace with freshly generated solutions (old ones were deleted)
-      setLocalTrizSolutions(generated);
-      const pathCounts: Record<string, number> = {};
-      for (const g of generated) pathCounts[g.path] = (pathCounts[g.path] || 0) + 1;
-      const pathSummary = Object.entries(pathCounts).map(([k, v]) => `${k}:${v}`).join(' / ');
-      toast.success(`AI 已產出 ${generated.length} 條 TRIZ 候選（依矛盾類型分派：${pathSummary}）`);
     } catch (err) {
-      console.error("TRIZ generation failed:", err);
-      toast.error("TRIZ 解法生成失敗");
+      console.error('Layered TRIZ generation failed:', err);
+      toast.error('TRIZ 分層求解失敗');
     } finally {
       setAiLoading((p) => ({ ...p, trizGen: false }));
     }
@@ -2057,11 +1945,11 @@ export default function Create() {
           />
         )}
 
-        {/* ── Section A: TRIZ candidate generation ── */}
-        {featureFlags.trizLayeredMode ? (
+        {/* ── Section A: TRIZ candidate generation (v7/v8 layered drill-down) ── */}
           <div className="space-y-3" data-testid="triz-layered-section">
-            {/* Convergence health dashboard (WBS 7.1 / UX v7 區塊 A) */}
-            <ConvergenceDashboard state={convergenceLoop.state} />
+            {/* v8: ConvergenceDashboard removed from Tab ① — Phase A retired,
+                per-card L1 critic badge replaces global scan. Dashboard only
+                appears in Decision Hub after Phase B runs. */}
 
             <div className="flex items-center justify-between gap-2">
               <div>
@@ -2207,145 +2095,6 @@ export default function Create() {
               </div>
             )}
           </div>
-        ) : (
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold">三路徑候選生成（TC / PC / SF）</h3>
-          <p className="text-xs text-muted-foreground">
-            對每條矛盾同時生成 TC（矛盾矩陣）、PC（分離原則）、SF（物場分析）三類候選。
-            所有候選均為 pending，在決策中心由 RD 挑選。
-          </p>
-
-          {trizSolutions.length === 0 ? (
-            <Card className="border-dashed border-2 border-blue-200">
-              <CardContent className="p-6 text-center space-y-3">
-                <div className="mx-auto w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-                  <Sparkles className="h-5 w-5 text-blue-500" />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {contradictionsList.length === 0
-                    ? '前置條件：需先在「深度探索」階段完成矛盾識別'
-                    : `已識別 ${contradictionsList.length} 條矛盾，可依類型分派生成 TRIZ 候選`}
-                </p>
-                <AiButton
-                  loading={!!aiLoading.trizGen}
-                  onClick={handleAiGenTriz}
-                  disabled={!canStart}
-                >
-                  {aiLoading.trizGen ? '生成中...' : 'AI 依矛盾類型生成候選'}
-                </AiButton>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {/* 9.2.3: Show solutions grouped by parent TC → child PCs */}
-              {sortedTrizEntries.map(([cId, solutions]) => {
-                const c = contradictionsList.find(x => x.id === cId);
-                // Skip child PCs at top level — they are rendered under their parent
-                if (c?.parentContradictionId) return null;
-                const children = childrenMap.get(cId) ?? [];
-                const catColorMap: Record<string, string> = {
-                  time: 'border-l-blue-500',
-                  space: 'border-l-green-500',
-                  condition: 'border-l-orange-500',
-                  whole_part: 'border-l-purple-500',
-                };
-                return (
-                <div key={cId} className="space-y-2">
-                <Card className="border-l-[3px] border-l-blue-400">
-                  <CardContent className="p-4 space-y-3">
-                    <p className="text-xs font-medium text-muted-foreground truncate" title={contradictionMap.get(cId) ?? cId}>
-                      {contradictionMap.get(cId) ?? cId}
-                    </p>
-                    <div className="space-y-2">
-                      {solutions.map((ts) => {
-                        const statusInfo = STATUS_LABELS[ts.status] || STATUS_LABELS.pending;
-                        return (
-                          <div key={ts.id} className="flex items-start gap-2 p-2.5 rounded-md bg-muted/20 border">
-                            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <Badge className={cn("text-[10px]", PATH_COLORS[ts.path] || 'bg-muted')}>{ts.path}</Badge>
-                                <Badge variant="outline" className="text-[10px]">
-                                  {ts.path === 'TC' && ts.principleNumber
-                                  ? `原理 #${ts.principleNumber}: ${ts.principleName}`
-                                  : ts.path === 'PC'
-                                  ? `${ts.principleName}`
-                                  : ts.path === 'SF'
-                                  ? `${ts.principleName}`
-                                  : ts.principleName
-                                }
-                                </Badge>
-                                <Badge className={cn("text-[10px]", statusInfo.cls)}>{statusInfo.label}</Badge>
-                              </div>
-                              <p className="text-xs leading-relaxed">{ts.suggestion}</p>
-                            </div>
-                            <div className="flex gap-1 shrink-0">
-                              {ts.status !== 'adopted' && (
-                                <Button variant="ghost" size="sm" className="h-7 text-[10px] px-2" onClick={() => setTrizStatus(ts.id, 'adopted')}>
-                                  採用
-                                </Button>
-                              )}
-                              {ts.status !== 'skipped' && (
-                                <Button variant="ghost" size="sm" className="h-7 text-[10px] px-2 text-muted-foreground" onClick={() => setTrizStatus(ts.id, 'skipped')}>
-                                  跳過
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-                {/* 9.2.3: Child PC results indented under parent TC */}
-                {children.map(child => {
-                  const childSolutions = trizByContradiction.get(child.id) ?? [];
-                  if (childSolutions.length === 0) return null;
-                  const borderClass = catColorMap[child.separationCategory ?? ''] ?? 'border-l-gray-400';
-                  return (
-                    <div key={child.id} className={cn("ml-8 border-l-4 pl-4", borderClass)}>
-                      <p className="text-[10px] text-muted-foreground mb-1 truncate" title={child.derivedParameter ?? child.naturalDescription}>
-                        PC: {child.derivedParameter ?? child.naturalDescription}{child.separationCategory ? ` (${child.separationCategory})` : ''}
-                      </p>
-                      <Card className="border-l-[3px] border-l-violet-400">
-                        <CardContent className="p-4 space-y-2">
-                          {childSolutions.map((ts) => {
-                            const statusInfo = STATUS_LABELS[ts.status] || STATUS_LABELS.pending;
-                            return (
-                              <div key={ts.id} className="flex items-start gap-2 p-2.5 rounded-md bg-muted/20 border">
-                                <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <Badge className={cn("text-[10px]", PATH_COLORS[ts.path] || 'bg-muted')}>{ts.path}</Badge>
-                                    <Badge variant="outline" className="text-[10px]">{ts.principleName}</Badge>
-                                    <Badge className={cn("text-[10px]", statusInfo.cls)}>{statusInfo.label}</Badge>
-                                  </div>
-                                  <p className="text-xs leading-relaxed">{ts.suggestion}</p>
-                                </div>
-                                <div className="flex gap-1 shrink-0">
-                                  {ts.status !== 'adopted' && (
-                                    <Button variant="ghost" size="sm" className="h-7 text-[10px] px-2" onClick={() => setTrizStatus(ts.id, 'adopted')}>採用</Button>
-                                  )}
-                                  {ts.status !== 'skipped' && (
-                                    <Button variant="ghost" size="sm" className="h-7 text-[10px] px-2 text-muted-foreground" onClick={() => setTrizStatus(ts.id, 'skipped')}>跳過</Button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </CardContent>
-                      </Card>
-                    </div>
-                  );
-                })}
-                </div>
-                );
-              })}
-              <AiButton aiVariant="outline" size="sm" loading={!!aiLoading.trizGen} onClick={handleAiGenTriz} className="text-xs">
-                重新生成 TRIZ 候選
-              </AiButton>
-            </div>
-          )}
-        </div>
-        )}
 
         {/* v8: Phase A section retired — L1 critic per-card replaces global scan. */}
         <KnowledgeRefsPanel refs={mockStepKnowledgeRefs[1] ?? []} />
