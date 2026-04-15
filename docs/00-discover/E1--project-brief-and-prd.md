@@ -240,17 +240,18 @@
 - **Then**：
   - [ ] 於 10 秒內回傳 Constraints / KPIs / Contradictions 三區塊
   - [ ] 每個 Constraint 含分類 (hard / soft) 與 source (段落 / 行號)
-  - [ ] 至少 1 對 Contradiction 以「improving vs worsening」格式呈現
+  - [ ] 至少 1 對 Contradiction 以「improving vs worsening」格式呈現（TC-only，依 ADR-007；若 LLM 無法映射到 39 參數，該矛盾以 `type=null + rationale` 標示，UI 導引使用者回 Socratic 追問）
   - [ ] 用戶可編輯/刪除每一項；編輯後 status 改為 user_modified
 
 #### UAT-02（對應 US-02）：TRIZ 分層解矛盾
-- **Given** 已凍結 Brief 且存在 ≥1 formalized contradiction
+- **Given** 已凍結 Brief 且存在 ≥1 formalized contradiction（TC-only，依 [ADR-007](../01-define/adrs/ADR-007-tc-only-explore-pc-sf-derivation-in-create.md)；使用者**不需手動選擇 TC/PC/SF**，系統自動識別 TC，後續 PC/SF 於 Create 階段派生）
 - **When** 使用者點 Create Tab ①「Solve Layered」
 - **Then**：
   - [ ] L1 surface card 於 5s 內串流顯示（skeleton → 實際內容）
   - [ ] L1 critic confidence < 0.6 時自動繼續 L2，否則顯示 drill-down 按鈕
   - [ ] 每 InventivePrinciple 含至少 1 筆 EvidenceReference
   - [ ] 多解情況下顯示 Phase B directive
+  - [ ] 後端於 `solve_triz_layered` 入口自 TC 派生 PC/SF（使用者無感知）
 
 #### UAT-03（對應 US-03）：Anti-Anchor 路線
 - **Given** 至少一個 `confirmed` anchor solution

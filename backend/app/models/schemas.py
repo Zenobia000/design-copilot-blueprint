@@ -928,21 +928,32 @@ class ContradictionFormalizeRequest(BaseModel):
 
 
 class ContradictionFormalizeResponse(BaseModel):
-    """TRIZ-formalized contradiction — supports TC, PC, and SF types."""
+    """TRIZ-formalized contradiction — Explore stage emits TC-only (ADR-007).
+
+    If LLM cannot map the natural description to two distinct TRIZ 39
+    parameters, `type` is returned as None and `rationale` explains why,
+    so the UI can present a Socratic follow-up instead of silently
+    downgrading to PC/SF.
+    """
     engineering_statement: str
     improving_param: int | None = None
     worsening_param: int | None = None
+    # deprecated — PC/SF 改於 Create 階段自 TC 派生（ADR-007）。
+    # 欄位保留以相容舊 DB row 與 Create 階段派生結果回傳。
     physical_contradiction: str | None = None
     pc_attribute_a: str | None = None
     pc_attribute_not_a: str | None = None
-    # Su-Field fields (populated when type == "SF")
+    # deprecated — Su-Field 於 Create 階段自 TC 派生（ADR-007）。
     sf_substance_1: str | None = None  # S1: tool substance
     sf_substance_2: str | None = None  # S2: product substance
     sf_field: str | None = None  # field type (mechanical/thermal/electrical/...)
     sf_interaction: str | None = None  # useful/harmful/insufficient/missing
     sf_completeness: str | None = None  # complete/incomplete/harmful_complete
-    type: str = "TC"  # TC, PC, or SF
+    # ADR-007: Explore output restricted to "TC"; null = cannot map.
+    type: Literal["TC"] | None = "TC"
     confidence: float = Field(ge=0, le=1, default=0.7)
+    # LLM explanation when type is None (cannot map to TC).
+    rationale: str | None = None
 
 
 # ---------------------------------------------------------------------------

@@ -54,6 +54,7 @@ graph LR
 > **觸發**: 收到 Brief，識別出「功率密度 vs. 散熱面積」矛盾
 > **對齊痛點**: PP-1 經驗鎖定、PP-2 假設隱藏
 > **對應 PRD**: §2.4 Day-in-the-Life 場景 + E3 Appendix B (Forward TRIZ Solver)
+> **合約更新**: 依 [ADR-007](adrs/ADR-007-tc-only-explore-pc-sf-derivation-in-create.md)（2026-04-15），Explore 階段矛盾識別改為 **TC-only**；PC/SF 於 Create 階段 `solve_triz_layered` 入口自 TC 派生，使用者不再需要「選擇 TC/PC/SF」。
 
 ### 2.1 Sequence Diagram
 
@@ -78,10 +79,14 @@ sequenceDiagram
     UI->>AA: 啟動蘇格拉底七類提問 (Step 2)
     AA-->>RD: 揭露 10 條隱含假設 + 3 條矛盾
     RD->>UI: 校準矛盾句 (Gate 3)
-    Note over UI: Contradiction: Reviewed → Verified
+    UI->>AA: formalize_contradiction (TC-only, ADR-007)
+    AA-->>UI: type="TC" + improving/worsening_param + rationale
+    Note over UI: Contradiction: Reviewed → Verified (僅 TC)
 
     RD->>UI: 點擊「正向分析」卡片 (Step 5a)
-    UI->>TS: solve_triz_layered(C-001)
+    UI->>TS: solve_triz_layered(C-001, TC-only payload)
+    TS->>AA: derive PC (decompose_tc_to_pcs) + SF (derive_su_field_from_tc)
+    AA-->>TS: PC[] + SuFieldModel (ADR-007 入口派生)
     TS->>TS: L1 TC 查矛盾矩陣
     TS->>TS: L2 PC 深挖物理根因 (ARIZ)
     TS->>TS: L3 SF 結構旁路

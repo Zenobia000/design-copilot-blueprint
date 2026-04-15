@@ -2404,9 +2404,47 @@ flowchart LR
 
 ## Appendix B: Forward TRIZ Solver Architecture
 
+> 2026-04-15 更新：依 [ADR-007](adrs/ADR-007-tc-only-explore-pc-sf-derivation-in-create.md)，Explore 階段限縮為 TC-only；PC/SF 於 Create 階段自 TC 派生。詳見下方「TC-Only Contract（ADR-007）」段。
+
 > **原獨立文件，現為 E3 附錄。**
 > 原檔：docs/01-define/architecture/Forward_TRIZ_Solver_Architecture.md
 > 錨點：`#appendix-b-forward-triz-solver-architecture`
+
+### §B.0 TC-Only Contract（ADR-007, 2026-04-15）
+
+依 [ADR-007](adrs/ADR-007-tc-only-explore-pc-sf-derivation-in-create.md)，Explore 與 Create 兩階段的矛盾處理契約調整如下：
+
+#### formalize_contradiction 新合約
+
+| 方向 | 合約 |
+|---|---|
+| **Input** | 自然語言矛盾敘述（`ContradictionFormalizeRequest.natural_description`） |
+| **Output (success)** | `type="TC"` + `improving_param` ∈ [1,39] + `worsening_param` ∈ [1,39] + `rationale`（非空說明） |
+| **Output (reject)** | `type=null` + `rationale`（解釋為何無法映射到 39 參數，並建議 Socratic 追問方向） |
+| **移除** | PC 降級分支、SF 分類分支 — Explore 不再輸出 PC/SF |
+
+> 舊行為（type ∈ {TC, PC, SF}、TC→PC 自動 downgrade）**已 deprecated**；舊資料 row 仍可讀取，但新寫入強制 TC-only。
+
+#### solve_triz_layered 入口派生流程
+
+```mermaid
+flowchart TD
+    REQ[SolveTrizLayeredRequest<br/>可能僅帶 TC 欄位] --> CHK{PC / SF 欄位<br/>是否缺失?}
+    CHK -->|PC 缺| DPC[analyst.decompose_tc_to_pcs<br/>產生 PC 列表]
+    CHK -->|SF 缺| DSF[analyst.derive_su_field_from_tc<br/>產生 S1/S2/F]
+    CHK -->|皆齊| SKIP[跳過派生]
+    DPC --> L12
+    DSF --> L3D
+    SKIP --> L12
+    L12[L1 surface + L2 root cause] --> OUT
+    L3D[L3 Su-Field 旁路<br/>派生失敗則 warn + 降級] --> OUT
+    OUT[LayeredTrizSolution]
+```
+
+**規則**：
+1. 派生產物**不回寫** `contradictions` 表（避免污染 Explore source of truth），僅於本次 response 帶回。
+2. `derive_su_field_from_tc` 失敗（LLM 無法推出有意義 S1/S2/F）→ L3 以 warning 降級，L1/L2 不受影響。
+3. 前端 `Create.tsx` 移除 `cType === 'TC'` 互斥閘門，`improving/worsening_param` 無條件傳出。
 
 ## 正向分析・TRIZ 解矛盾：系統架構說明書（SA 視角）
 
@@ -2460,7 +2498,7 @@ E-bike RD 在面對「輕量 vs 強度」「散熱 vs 體積」「成本 vs 效�
 | 痛點 | 後果 |
 |---|---|
 | 知識庫太大（39 參數 + 40 原理 + 76 標準解 + 矩陣）≈ 6 萬字 | 全部塞進 LLM prompt 會超出 context 預算 |
-| 三類矛盾（TC/PC/SF）的處理機制不同，但 user 往往講「我有個矛盾」就希望系統自己分流 | 沒有正確分流會用錯誤的解法路徑 |
+| 三類矛盾（TC/PC/SF）的處理機制不同，但 user 往往講「我有個矛盾」就希望系統自己分流 | 沒有正確分流會用錯誤的解法路徑 <br/>**【2026-04-15 更新 / ADR-007 deprecated】** Explore 已改為 TC-only；PC/SF 於 Create 階段派生，見 §B.0 |
 
 #### 1.2 系統使命
 
@@ -2563,7 +2601,7 @@ graph TB
         F1[正向分析・TRIZ 解矛盾<br/>F1<br/>本文件範圍]
     end
 
-    Step3[Step 3: 矛盾識別<br/>上游：提供 TC/PC/SF 分類矛盾]
+    Step3[Step 3: 矛盾識別<br/>上游：提供 TC 矛盾 ADR-007<br/>PC/SF 於 F1 入口派生]
     F2[F2: 子系統定義<br/>下游：消費建議與 affected_modules]
     Hub[候選方案決策中心<br/>下游：每條建議成為候選]
 
@@ -2572,7 +2610,7 @@ graph TB
     Supabase[(Supabase<br/>外部資料庫)]
 
     RD <--> F1
-    Step3 -->|矛盾 + 類型 + 參數| F1
+    Step3 -->|TC 矛盾 + improving/worsening_param<br/>ADR-007: PC/SF 於 F1 入口派生| F1
     F1 -->|TrizSuggestion 清單<br/>+ affected_modules| F2
     F1 -->|每條建議成為候選| Hub
     F1 <-->|讀取 KB Markdown| KB

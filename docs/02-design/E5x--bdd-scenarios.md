@@ -59,9 +59,12 @@
 
 Feature: Forward TRIZ layered drill-down
 
+  # ADR-007 (2026-04-15): Explore 階段 Contradiction 改為 TC-only；
+  # Create 階段 solve_triz_layered 入口自動派生 PC/SF，使用者不需手動選擇分類。
+
   Background:
     Given I am a logged-in RD user
-    And I have a project with frozen Brief and at least one Contradiction "C-01"
+    And I have a project with frozen Brief and at least one TC-typed Contradiction "C-01" (ADR-007 TC-only)
     And I am on the "/create" page, Tab ① TRIZ
 
   @happy-path @smoke
@@ -79,6 +82,25 @@ Feature: Forward TRIZ layered drill-down
     Then an "L2 Root Cause" card should appear
     And it should list one of "Space / Time / Condition / System-Level" separation candidates
     And each candidate should link to an "L3 Su-Field" slot
+
+  @adr-006 @tc-only
+  Scenario: TC-only request → 後端自動派生 PC/SF（ADR-007）
+    Given Contradiction "C-01" has only TC fields (improving_param, worsening_param, engineering_statement)
+    And PC / SF fields are absent from the request payload
+    When I click "Solve Layered" on "C-01"
+    Then the backend should derive PC via "analyst.decompose_tc_to_pcs"
+    And the backend should derive SF via "analyst.derive_su_field_from_tc"
+    And the derived PC/SF should appear in the response but NOT be written back to the "contradictions" table
+    And all three layers (L1/L2/L3) should be populated when derivation succeeds
+
+  @adr-006 @degraded
+  Scenario: SF 派生失敗 → L3 降級但 L1/L2 正常
+    Given Contradiction "C-01" has only TC fields
+    And "analyst.derive_su_field_from_tc" returns None (LLM cannot produce meaningful S1/S2/F)
+    When I click "Solve Layered" on "C-01"
+    Then "l1_surface" and "l2_root_cause" should still be populated
+    And "l3_sufield" should be None
+    And the response should include a warning "SF derivation failed, L3 degraded"
 
   @phase-b
   Scenario Outline: 多解併行採納策略

@@ -30,6 +30,7 @@
   1. `request.contradiction_id` 非空，且該 contradiction 存在於 project。
   2. `request.improving`, `request.worsening` ∈ TRIZ 39 工程參數集合。
   3. `request.project_id` 對應使用者有權限的 project。
+  4. **ADR-007**: `request` 可**僅帶 TC 欄位**（improving/worsening/engineering_statement）；若 `sf_substance_1/2`、`sf_field`、`physical_contradiction` 缺失，agent 於入口呼叫 `analyst.derive_su_field_from_tc` 與 `analyst.decompose_tc_to_pcs` 派生。派生結果僅於本次 response 帶回，**不回寫** `contradictions` 表。
 
 * **後置條件 (Postconditions)**:
   1. 回傳之 `LayeredTrizSolution` 至少含 `l1_surface`（非 None）。
@@ -74,7 +75,26 @@
 * **Act**: solve_layered。
 * **Assert**: `result.phase_b_directive.strategy == "merge"`。
 
-#### 情境 5: 上游失敗 — LLM timeout
+#### 情境 5: ADR-007 — TC-only input 全層派生
+* **測試案例 ID**: `TC-TrizSolve-006`
+* **描述**: `request` 僅含 TC（improving=1, worsening=14, engineering_statement），`sf_*` / `physical_contradiction` 全部缺失。
+* **Arrange**: mock `analyst.derive_su_field_from_tc` 回 `SuFieldModel("鋁合金車架","地面反力","機械力")`；mock `analyst.decompose_tc_to_pcs` 回 2 條 PC。
+* **Act**: `await solver.solve_layered(req)`。
+* **Assert**:
+  - `result.l1_surface is not None`
+  - `result.l2_root_cause is not None` 且 `separation_candidates` 來源是派生的 PC
+  - `result.l3_sufield is not None` 且 S1/S2/F 來自派生
+  - 無對 `contradictions` 表的 update 呼叫（派生不回寫）
+
+#### 情境 6: ADR-007 — SF 派生失敗 L3 降級
+* **測試案例 ID**: `TC-TrizSolve-007`
+* **描述**: `derive_su_field_from_tc` 回 `None`（LLM 推不出有意義 S1/S2/F）。
+* **Assert**:
+  - `result.l1_surface is not None` 且 `result.l2_root_cause is not None`（不受影響）
+  - `result.l3_sufield is None`
+  - response metadata 含 `warnings[]` 註記 "SF derivation failed, L3 degraded"
+
+#### 情境 7: 上游失敗 — LLM timeout
 * **測試案例 ID**: `TC-TrizSolve-005`
 * **描述**: Anthropic API 5s timeout。
 * **Assert**: 拋 `LlmUpstreamError` → 502 + `error.code=llm_upstream_error`。

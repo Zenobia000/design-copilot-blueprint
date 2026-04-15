@@ -851,8 +851,11 @@ export interface ContradictionFormalizeResponse {
   sf_field: string | null;
   sf_interaction: string | null;
   sf_completeness: string | null;
-  type: "TC" | "PC" | "SF";
+  // ADR-007: Explore 強制 TC-only；若 LLM 無法映射到 39 參數，後端回 type=null + rationale
+  type: "TC" | "PC" | "SF" | null;
   confidence: number;
+  // ADR-007: 當 type=null 時，後端附帶說明以驅動追問/細化 UX
+  rationale?: string | null;
 }
 
 export function contradictionFormalize(body: ContradictionFormalizeRequest) {

@@ -389,6 +389,14 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
             natural_description: c.description,
             mission, constraints, kpis, socraticAnswers,
           });
+          // ADR-007: 若 LLM 無法映射到 TC 兩參數，回 type=null + rationale；不寫入 DB
+          if (result.type === null) {
+            const desc = (c.description || c.id).slice(0, 40);
+            toast.warning(`無法形式化「${desc}」為 TC`, {
+              description: (result.rationale ?? '請細化描述或多答幾題 Socratic 後重試').slice(0, 160),
+            });
+            return 0;
+          }
           await supabase
             .from('contradictions')
             .update({
@@ -448,6 +456,16 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
           natural_description: desc,
           mission, constraints, kpis, socraticAnswers,
         });
+
+        // ADR-007: 若回 type=null，清掉 draft 並提示細化
+        if (result.type === null) {
+          await supabase.from('contradictions').delete().eq('id', draft.id);
+          toast.warning('AI 無法將此矛盾形式化為 TC', {
+            description: (result.rationale ?? '請提供更具體的工程描述或先答 Socratic 題目').slice(0, 160),
+          });
+          invalidate();
+          return;
+        }
 
         await supabase
           .from('contradictions')

@@ -53,6 +53,8 @@ E3 v2.0 依 VibeCoding Template 05 骨架組織為三部分：
 - [ADR-003](adrs/ADR-003-llm-service-hardening.md) — LLM Service Hardening
 - [ADR-004](adrs/ADR-004-qa-devops-infrastructure.md) — QA/DevOps Infrastructure
 - [ADR-005](adrs/ADR-005-scope-expansion.md) — Scope Expansion
+- [ADR-006 (harness)](adrs/ADR-006-harness-architecture.md) — Backend Harness Architecture
+- [ADR-007 (TC-only)](adrs/ADR-007-tc-only-explore-pc-sf-derivation-in-create.md) — Explore TC-only；Create 派生 PC/SF（2026-04-15）
 
 ## WBS (VibeCoding 16)
 

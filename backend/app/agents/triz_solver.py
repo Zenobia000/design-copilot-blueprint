@@ -704,6 +704,37 @@ def solve_triz_layered(req: SolveTrizLayeredRequest) -> SolveTrizLayeredResponse
     unchanged; this function is a thin orchestrator (§9.1).
     """
     with phase_timer("solve_triz_layered"):
+        # ADR-007: Create-stage SF derivation.
+        # Explore emits TC-only. If the caller did not supply Su-Field
+        # fields but a valid TC is present, derive them here so L3 has
+        # something structural to work with. Failure is non-fatal — L3
+        # will degrade gracefully when S1/S2/F remain empty.
+        if (
+            not (req.sf_substance_1 or req.sf_substance_2 or req.sf_field)
+            and isinstance(req.improving_param, int)
+            and isinstance(req.worsening_param, int)
+        ):
+            try:
+                from app.agents.analyst import derive_su_field_from_tc  # local import to avoid cycle
+                derived_sf = derive_su_field_from_tc(
+                    improving_param=req.improving_param,
+                    worsening_param=req.worsening_param,
+                    engineering_statement=req.natural_description,
+                    natural_description=req.natural_description,
+                )
+                if derived_sf is not None:
+                    req = req.model_copy(update={
+                        "sf_substance_1": derived_sf.S1 or None,
+                        "sf_substance_2": derived_sf.S2 or None,
+                        "sf_field": derived_sf.F or None,
+                    })
+                    logger.info(
+                        "solve_triz_layered: derived SF from TC (S1=%r S2=%r F=%r)",
+                        derived_sf.S1, derived_sf.S2, derived_sf.F,
+                    )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("solve_triz_layered: SF derivation failed: %s", exc)
+
         # L1 — always
         l1 = _run_l1(req)
 

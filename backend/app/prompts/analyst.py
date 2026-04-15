@@ -542,8 +542,11 @@ Return a JSON object:
 
 CONTRADICTION_FORMALIZATION = """\
 <task>
-Convert the following natural-language contradiction or problem into a TRIZ-standard formal representation.
-Classify it into one of three types: TC (Technical Contradiction), PC (Physical Contradiction), or SF (Su-Field Problem).
+Convert the following natural-language contradiction into a TRIZ Technical
+Contradiction (TC) — i.e. a pair of opposing TRIZ 39 engineering parameters.
+Per ADR-007, the Explore stage emits TC-only. PC (Physical Contradiction)
+and SF (Su-Field) representations are DERIVED from the TC at the Create stage,
+NOT classified here.
 </task>
 
 <context>
@@ -557,8 +560,8 @@ Classify it into one of three types: TC (Technical Contradiction), PC (Physical 
 
 <clarified_insights>
 The following insights were derived from structured Socratic questioning with the problem owner.
-Use them to better understand system boundaries, constraint severity, hidden assumptions,
-and evaluation ambiguity. These should influence your contradiction classification.
+Use them to understand system boundaries, constraint severity, hidden assumptions,
+and evaluation ambiguity.
 
 {socratic_insights}
 </clarified_insights>
@@ -569,33 +572,24 @@ and evaluation ambiguity. These should influence your contradiction classificati
 </input>
 
 <instructions>
-1. Read the clarified insights carefully — they may reveal that:
-   - The real contradiction is different from what the natural description suggests
-   - A parameter trade-off (TC) is actually an opposing-demand problem (PC) or interaction problem (SF)
-   - Ground truth instability or undefined criteria are the root cause, not model capability
-2. Produce an engineering statement describing the contradiction/problem in one sentence.
-3. Classify the type using these rules:
-   - **TC** (Technical Contradiction): two different parameters conflict — improving one worsens another.
-   - **PC** (Physical Contradiction): one parameter must simultaneously satisfy opposing demands.
-   - **SF** (Su-Field Problem): a substance-field interaction is incomplete, harmful, or insufficient.
-     Use SF when the problem is about a system interaction that is missing, too weak, or produces
-     undesirable effects — rather than a parameter trade-off.
-4. For TC:
-   - Map BOTH improving and worsening parameters to TRIZ 39 engineering parameters (1–39).
-   - Both improving_param AND worsening_param MUST be non-null integers (1–39).
-   - If you cannot confidently map to two distinct parameters, do NOT classify as TC — reclassify as PC or SF instead.
-5. For PC:
-   - Extract the required attribute (pc_attribute_a): the property the system needs.
-   - Extract the opposing attribute (pc_attribute_not_a): the contradictory property the system also needs.
-   - Each attribute should be a concise phrase (e.g., "高計算深度", "低計算量"), NOT a full sentence.
-   - Store the full description in physical_contradiction.
-6. For SF:
-   - Identify S1 (tool substance that acts), S2 (product substance acted upon), F (field type).
-   - Classify sf_interaction: "useful" | "harmful" | "insufficient" | "missing".
-   - Classify sf_completeness: "complete" | "incomplete" | "harmful_complete".
-   - Set improving_param, worsening_param, physical_contradiction, pc_attribute_a, pc_attribute_not_a to null.
-7. Assign a confidence score (0–1) for the mapping quality.
-   - Lower confidence if clarified insights reveal ambiguity in problem definition or evaluation criteria.
+1. Produce a one-sentence `engineering_statement` describing the contradiction.
+2. Attempt to map the contradiction onto TWO distinct TRIZ 39 engineering
+   parameters (1–39):
+   - `improving_param` = the parameter the designer wants to improve.
+   - `worsening_param` = the parameter that degrades as a side-effect.
+3. Success path: set `type = "TC"`, fill both integers (1–39), assign
+   `confidence` ∈ [0,1], and leave `rationale` null.
+4. Failure path: if you CANNOT confidently identify two distinct TRIZ 39
+   parameters, set `type = null`, leave both params null, and write a
+   `rationale` explaining what is ambiguous or missing so the UI can
+   launch a Socratic follow-up. DO NOT fall back to PC or SF here —
+   those layers are derived downstream from a valid TC.
+5. Lower `confidence` if clarified insights reveal ambiguity in problem
+   definition or evaluation criteria.
+
+Note: `physical_contradiction`, `pc_attribute_a/not_a`, and `sf_*` fields
+in the output schema are DEPRECATED at this stage (kept only for
+backward-compat with legacy readers). Always return them as null.
 </instructions>
 
 <output_schema>
@@ -603,6 +597,9 @@ and evaluation ambiguity. These should influence your contradiction classificati
   "engineering_statement": "...",
   "improving_param": 14,
   "worsening_param": 1,
+  "type": "TC",
+  "confidence": 0.8,
+  "rationale": null,
   "physical_contradiction": null,
   "pc_attribute_a": null,
   "pc_attribute_not_a": null,
@@ -610,43 +607,73 @@ and evaluation ambiguity. These should influence your contradiction classificati
   "sf_substance_2": null,
   "sf_field": null,
   "sf_interaction": null,
-  "sf_completeness": null,
-  "type": "TC",
-  "confidence": 0.8
+  "sf_completeness": null
 }}
 </output_schema>
 
-<example_pc>
+<example_cannot_map>
 {{
-  "engineering_statement": "The VLM model must have both high computational depth and low computational cost",
+  "engineering_statement": "The system must be both creative and reproducible during ideation workshops",
   "improving_param": null,
   "worsening_param": null,
-  "physical_contradiction": "The core model requires large-scale parameters for high recall, but must also meet real-time inference latency requirements",
-  "pc_attribute_a": "高計算深度（大規模參數以達成極高召回率）",
-  "pc_attribute_not_a": "低計算量（滿足產線即時推論延遲要求）",
-  "sf_substance_1": null, "sf_substance_2": null, "sf_field": null, "sf_interaction": null, "sf_completeness": null,
-  "type": "PC",
-  "confidence": 0.85
-}}
-</example_pc>
-
-<example_sf>
-{{
-  "engineering_statement": "Bearing support stiffness is insufficient at high RPM, causing rotor deflection",
-  "improving_param": null,
-  "worsening_param": null,
+  "type": null,
+  "confidence": 0.25,
+  "rationale": "Cannot map 'creative' vs 'reproducible' onto two distinct TRIZ 39 engineering parameters — both sides describe team/process outcomes rather than quantifiable engineering attributes. Recommend Socratic follow-up to extract a measurable trade-off (e.g. idea novelty vs evaluation consistency).",
   "physical_contradiction": null,
   "pc_attribute_a": null,
   "pc_attribute_not_a": null,
-  "sf_substance_1": "軸承 (Bearing)",
-  "sf_substance_2": "轉子 (Rotor)",
-  "sf_field": "mechanical (radial support force)",
-  "sf_interaction": "insufficient",
-  "sf_completeness": "incomplete",
-  "type": "SF",
-  "confidence": 0.80
+  "sf_substance_1": null, "sf_substance_2": null, "sf_field": null,
+  "sf_interaction": null, "sf_completeness": null
 }}
-</example_sf>
+</example_cannot_map>
+"""
+
+
+# ---------------------------------------------------------------------------
+# Su-Field derivation from a confirmed TC (ADR-007 Create-stage derivation)
+# ---------------------------------------------------------------------------
+
+SU_FIELD_DERIVATION_FROM_TC = """\
+<task>
+Derive a Su-Field (Substance-Field) structural representation from an
+already-identified Technical Contradiction (TC). This runs at the Create
+stage to produce L3 structural input without forcing Explore to classify
+as SF (ADR-007).
+</task>
+
+<input>
+<engineering_statement>{engineering_statement}</engineering_statement>
+<improving_param>{improving_param} — {improving_name}</improving_param>
+<worsening_param>{worsening_param} — {worsening_name}</worsening_param>
+<natural_description>{natural_description}</natural_description>
+</input>
+
+<instructions>
+1. Identify the primary interacting entities implied by the TC:
+   - S1 (tool substance): the element that acts on something.
+   - S2 (product substance): the element being acted upon.
+   - F (field): mechanical | thermal | electrical | magnetic | chemical |
+     acoustic | optical | informational | ... pick the most physically
+     meaningful one.
+2. Classify the interaction state:
+   - "incomplete" — one of S1/S2/F missing
+   - "effective" — works as intended
+   - "harmful"   — produces undesired effect
+   - "insufficient" — desired effect too weak
+   - "unknown"   — cannot tell
+3. If the TC is purely abstract (no physical substances — e.g. process,
+   scheduling, or information-only contradiction), you MAY return all
+   fields empty and state="unknown"; downstream L3 will degrade gracefully.
+</instructions>
+
+<output_schema>
+{{
+  "S1": "...",
+  "S2": "...",
+  "F": "mechanical",
+  "state": "insufficient"
+}}
+</output_schema>
 """
 
 # ---------------------------------------------------------------------------

@@ -30,7 +30,7 @@
 
 ## 職責
 
-Analyst Agent 是 Discover/Define 階段的主要 LLM actor，負責把自然語言 Brief 轉成結構化的約束 / KPI / 假設 / 矛盾，並驅動蘇格拉底問答、矛盾形式化（TC/PC/SF）、TC → multi-PC drill-down、CLD 因果圖、Anti-Anchor 反向路徑、未知因子探索。所有方法共用 `ANALYST_SYSTEM` prompt 與 `call_llm_json` JSON-mode LLM call；產生結構化資料均經 Pydantic schema（`app.models.schemas`）驗證。
+Analyst Agent 是 Discover/Define 階段的主要 LLM actor，負責把自然語言 Brief 轉成結構化的約束 / KPI / 假設 / 矛盾，並驅動蘇格拉底問答、矛盾形式化（TC-only，依 [ADR-007](../../../01-define/adrs/ADR-007-tc-only-explore-pc-sf-derivation-in-create.md)）、TC → multi-PC drill-down、TC → SF 派生（Create 階段入口用）、CLD 因果圖、Anti-Anchor 反向路徑、未知因子探索。所有方法共用 `ANALYST_SYSTEM` prompt 與 `call_llm_json` JSON-mode LLM call；產生結構化資料均經 Pydantic schema（`app.models.schemas`）驗證。
 
 ---
 
@@ -53,20 +53,38 @@ Analyst Agent 是 Discover/Define 階段的主要 LLM actor，負責把自然語
 
 ### 規格 2: `formalize_contradiction(req: ContradictionFormalizeRequest) -> ContradictionFormalizeResponse`
 
-**描述**: 把一條自然語言矛盾形式化為 TRIZ `TC`（工程矛盾，對應 39 參數）/ `PC`（物理矛盾，同一屬性同時要 A 與 ¬A）/ `SF`（物場模型）。
+**描述**: 依 [ADR-007](../../../01-define/adrs/ADR-007-tc-only-explore-pc-sf-derivation-in-create.md)，把一條自然語言矛盾形式化為 TRIZ **TC**（工程矛盾，對應 39 參數）；若 LLM 無法映射到兩個 `improving/worsening_param`，**拒絕**並回傳 `type=null + rationale`（不再 downgrade 至 PC/SF）。PC/SF 於 Create 階段由 `solve_triz_layered` 入口派生。
 
 **契約式設計 (DbC)**:
 * **前置條件**:
   1. `req.natural_description` 非空字串。
   2. `req.contradiction_id` 對應存在於 `contradictions` table 的 row。
-* **後置條件**:
-  1. 回傳之 `type ∈ {"TC", "PC", "SF"}`。
-  2. 若 `type == "TC"`，則 `improving_param` 與 `worsening_param` 必為 `int` 且 ∈ [1, 39]；否則會被 agent 自動降級為 `PC`（見 `analyst.py` L344–358）。
-  3. 若自動降級發生，`physical_contradiction` 欄位至少被填成 `engineering_statement` 的副本（不可為空）。
-  4. `confidence ∈ [0, 1]`。
+* **後置條件** (ADR-007):
+  1. 成功：`type == "TC"` AND `improving_param, worsening_param ∈ [1, 39]` AND `rationale` 非空。
+  2. 失敗：`type is None` AND `rationale` 非空（解釋為何無法映射到 39 參數）。
+  3. `confidence ∈ [0, 1]`。
+  4. **不再產出** PC/SF 情境；`physical_contradiction` / `sf_substance_1/2` / `sf_field` 欄位標記為 Explore-階段 deprecated（仍保留於 schema 供舊資料讀取）。
 * **不變性**:
-  1. **TC MUST have both params**（invariant enforced by explicit downgrade logic）。
+  1. **TC MUST have both params**；無法映射即 reject，不 downgrade。
   2. `socraticAnswers` 若提供，需先經 `_extract_socratic_insights` 轉為 bullet 字串注入 prompt。
+  3. 派生產物不回寫 `contradictions` 表（避免污染 Explore source of truth）。
+
+---
+
+### 規格 2a: `derive_su_field_from_tc(req: TrizLookupRequest) -> SuFieldModel | None`
+
+**描述**: 依 [ADR-007](../../../01-define/adrs/ADR-007-tc-only-explore-pc-sf-derivation-in-create.md)，於 `solve_triz_layered` 入口以 TC（含 `improving_param` / `worsening_param` / `engineering_statement`）派生 L3 用的 Substance-Field 模型（S1 / S2 / F）。失敗時回 `None` 並 log warning，L3 降級；L1/L2 不受影響。
+
+**契約式設計 (DbC)**:
+* **前置條件**:
+  1. `req.improving_param`, `req.worsening_param` ∈ [1, 39]（已由 `formalize_contradiction` 驗證）。
+  2. `req.engineering_statement` 非空。
+* **後置條件**:
+  1. 成功：回傳 `SuFieldModel(substance_1, substance_2, field)`，三欄皆非空字串。
+  2. 失敗（LLM 無法推出有意義 S1/S2/F）：回傳 `None` + `logger.warning`；由 orchestrator 降級 L3 為 warning-only。
+* **不變性**:
+  1. **不回寫** `contradictions` 表；派生結果僅於本次 solve response 帶回。
+  2. 任何 exception 不得逃逸（error isolation，與 `decompose_tc_to_pcs` 一致）。
 
 ---
 
@@ -144,14 +162,42 @@ Analyst Agent 是 Discover/Define 階段的主要 LLM actor，負責把自然語
   - `len(result.constraints) >= 1 && result.constraints[0].code == "C1"`
   - `result` 不含 LLM 多餘欄位（後置條件 2）
 
-#### 情境 2: 邊界 — TC 參數無效自動降級 PC
-* **測試案例 ID**: `TC-Analyst-002`
-* **描述**: LLM 返回 `type="TC"` 但 `improving_param=null`。
+#### 情境 2: TC 正常映射（ADR-007）
+* **測試案例 ID**: `TC-Analyst-01x`
+* **描述**: 自然語言「重量 vs 剛性」，LLM 映射到 Param 1 (Weight) / Param 14 (Strength)。
 * **Act**: `formalize_contradiction(req)`。
 * **Assert**:
-  - `result.type == "PC"`（自動降級，analyst.py L344）
-  - `result.physical_contradiction` 非空（fallback 到 engineering_statement）
-  - log warning 被發射
+  - `result.type == "TC"`
+  - `result.improving_param == 1` 且 `result.worsening_param == 14`
+  - `result.rationale` 非空
+  - `result.physical_contradiction is None`（ADR-007 不再產出 PC）
+
+#### 情境 2b: LLM 無法映射 → reject（ADR-007）
+* **測試案例 ID**: `TC-Analyst-02x`
+* **描述**: 自然語言「這個專案的士氣低落」，LLM 無法映射到 39 參數任一。
+* **Act**: `formalize_contradiction(req)`。
+* **Assert**:
+  - `result.type is None`（**不再** downgrade 至 PC）
+  - `result.rationale` 非空（解釋為何無法映射）
+  - logger.warning 被發射；前端據此回 Socratic 追問
+
+#### 情境 2c: derive_su_field_from_tc 成功（ADR-007）
+* **測試案例 ID**: `TC-Analyst-03x`
+* **描述**: 輸入有效 TC（improving=1, worsening=14, engineering_statement 非空），LLM 推出合理 S1/S2/F。
+* **Act**: `derive_su_field_from_tc(req)`。
+* **Assert**:
+  - `result` 為 `SuFieldModel`（非 None）
+  - `result.substance_1`, `result.substance_2`, `result.field` 皆為非空 `str`
+  - 無回寫 `contradictions` 表的 side effect
+
+#### 情境 2d: derive_su_field_from_tc 失敗 → None（ADR-007）
+* **測試案例 ID**: `TC-Analyst-04x`
+* **描述**: LLM 推不出有意義的 S1/S2/F（回傳空字串或 exception）。
+* **Act**: `derive_su_field_from_tc(req)`。
+* **Assert**:
+  - `result is None`
+  - `logger.warning` 被呼叫（失敗訊息含 TC 的 contradiction_id）
+  - 不 re-raise exception（error isolation）
 
 #### 情境 3: Drill-down — TC→PC critic 不觸發
 * **測試案例 ID**: `TC-Analyst-003`

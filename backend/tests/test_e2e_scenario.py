@@ -558,7 +558,12 @@ class TestEbikeE2EScenario:
 
     @patch("app.agents.analyst.call_llm_json")
     def test_step03b_identify_contradiction_pc(self, mock_llm, client):
-        """Phase 1, Step 3b: Formalize PC contradiction — thermal management vs cost."""
+        """Phase 1, Step 3b (ADR-007): LLM-emitted PC now coerced to type=null + rationale.
+
+        Explore stage is TC-only; when LLM cannot map to 39 params (or returns a legacy
+        PC/SF classification), formalize_contradiction returns type=null with rationale
+        so UI can drive Socratic refinement. PC/SF derivation moves to Create stage.
+        """
         mock_llm.return_value = _CONTRADICTION_FORMALIZE_PC_RESPONSE
 
         resp = client.post("/api/v1/contradictions/c-pc-thermal-cost/formalize", json={
@@ -568,13 +573,14 @@ class TestEbikeE2EScenario:
         })
 
         assert resp.status_code == 200
-        pc = resp.json()
+        payload = resp.json()
 
-        assert pc["type"] == "PC"
-        assert pc["physical_contradiction"] is not None
-        assert "thermal" in pc["physical_contradiction"].lower()
+        assert payload["type"] is None, "ADR-007: non-TC LLM output must be coerced to null"
+        assert payload.get("rationale"), "ADR-007: rationale must explain why mapping failed"
+        assert payload.get("physical_contradiction") in (None, ""), \
+            "ADR-007: PC field no longer emitted from Explore"
 
-        self.__class__._pc_contradiction = pc
+        self.__class__._pc_contradiction = payload
 
     # -----------------------------------------------------------------------
     # Phase 2: Diverge

@@ -284,12 +284,14 @@ export default function Create() {
         contradiction_id: c.id,
         natural_description: c.naturalDescription,
         severity: pickSeverity(c.severity ?? cAny.severity),
-        improving_param: cType === 'TC' ? c.improvingParam : undefined,
-        worsening_param: cType === 'TC' ? c.worseningParam : undefined,
+        // ADR-007: Explore 階段 TC-only；PC/SF 由後端於 solve_triz_layered 入口派生
+        improving_param: c.improvingParam ?? undefined,
+        worsening_param: c.worseningParam ?? undefined,
         physical_contradiction: pcDesc,
-        sf_substance_1: cType === 'SF' ? (cAny.sfSubstance1 as string | undefined) : undefined,
-        sf_substance_2: cType === 'SF' ? (cAny.sfSubstance2 as string | undefined) : undefined,
-        sf_field: cType === 'SF' ? (cAny.sfField as string | undefined) : undefined,
+        // sf_* 保留但通常為 null；後端會派生；舊 DB 若有 SF 資料亦可被傳入當 hint
+        sf_substance_1: (cAny.sfSubstance1 as string | undefined) ?? undefined,
+        sf_substance_2: (cAny.sfSubstance2 as string | undefined) ?? undefined,
+        sf_field: (cAny.sfField as string | undefined) ?? undefined,
         quick_mode: trizQuickMode,
         ...hintFields,
       });

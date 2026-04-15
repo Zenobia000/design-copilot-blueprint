@@ -28,6 +28,7 @@ from app.prompts.analyst import (
     ANTI_ANCHOR_GENERATION,
     SOCRATIC_INSIGHT_EXTRACTION,
     CONTRADICTION_FORMALIZATION,
+    SU_FIELD_DERIVATION_FROM_TC,
     ASSUMPTION_EXTRACTION,
     UNKNOWN_FACTOR_DISCOVERY,
     TC_TO_MULTI_PC_DECOMPOSITION,
@@ -68,6 +69,7 @@ from app.models.schemas import (
     AntiAnchorResponse,
     ContradictionFormalizeRequest,
     ContradictionFormalizeResponse,
+    SuFieldModel,
     ContradictionDecomposeRequest,
     ContradictionDecomposeResponse,
     DecomposedPC,
@@ -338,25 +340,110 @@ def formalize_contradiction(req: ContradictionFormalizeRequest) -> Contradiction
     raw = call_llm_json(ANALYST_SYSTEM, prompt)
     data = json.loads(raw)
 
-    # Enforce invariant: TC MUST have both params. If LLM returned TC
-    # with null params, downgrade to PC (parameter trade-off that couldn't
-    # be mapped = physical contradiction).
-    if data.get("type") == "TC":
-        ip = data.get("improving_param")
-        wp = data.get("worsening_param")
-        if not isinstance(ip, int) or not isinstance(wp, int) or ip < 1 or wp < 1:
-            logger.warning(
-                "Formalize returned TC with invalid params (ip=%s, wp=%s) — downgrading to PC",
-                ip, wp,
+    # ADR-007: Explore stage emits TC-only. If LLM claims type="TC" but
+    # params are missing/invalid, treat as "cannot map" — surface type=null
+    # + rationale so the UI can drive a Socratic follow-up. Do NOT downgrade
+    # to PC/SF (those are derived at the Create stage from a valid TC).
+    raw_type = data.get("type")
+    ip = data.get("improving_param")
+    wp = data.get("worsening_param")
+    tc_params_valid = (
+        isinstance(ip, int) and isinstance(wp, int) and 1 <= ip <= 39 and 1 <= wp <= 39
+    )
+
+    if raw_type == "TC" and not tc_params_valid:
+        logger.warning(
+            "Formalize: type=TC but params invalid (ip=%s, wp=%s) — coercing to type=null",
+            ip, wp,
+        )
+        data["type"] = None
+        data["improving_param"] = None
+        data["worsening_param"] = None
+        if not data.get("rationale"):
+            data["rationale"] = (
+                "LLM returned type=TC but could not supply two valid TRIZ 39 "
+                "parameters (1–39). Please refine the contradiction description "
+                "or answer Socratic follow-ups to surface a measurable trade-off."
             )
-            data["type"] = "PC"
-            data["improving_param"] = None
-            data["worsening_param"] = None
-             # Ensure PC fields are populated
-            if not data.get("physical_contradiction"):
-                data["physical_contradiction"] = data.get("engineering_statement", "")
+    elif raw_type not in ("TC", None):
+        # ADR-007: PC/SF are no longer valid Explore outputs.
+        logger.warning(
+            "Formalize: LLM returned deprecated type=%r — coercing to type=null with rationale",
+            raw_type,
+        )
+        data["type"] = None
+        data["improving_param"] = None
+        data["worsening_param"] = None
+        if not data.get("rationale"):
+            data["rationale"] = (
+                f"LLM attempted to classify as {raw_type}, but ADR-007 restricts "
+                "Explore output to Technical Contradictions (TC) only. Please "
+                "refine the description so two opposing TRIZ 39 parameters can "
+                "be identified; PC/SF views are derived automatically at the "
+                "Create stage."
+            )
+
+    # Always zero out deprecated PC/SF payload from Explore response
+    # (keep the field shape for schema compat, but never emit stale data).
+    for k in (
+        "physical_contradiction",
+        "pc_attribute_a",
+        "pc_attribute_not_a",
+        "sf_substance_1",
+        "sf_substance_2",
+        "sf_field",
+        "sf_interaction",
+        "sf_completeness",
+    ):
+        data[k] = None
 
     return ContradictionFormalizeResponse(**data)
+
+
+def derive_su_field_from_tc(
+    improving_param: int,
+    worsening_param: int,
+    engineering_statement: str,
+    natural_description: str | None = None,
+) -> SuFieldModel | None:
+    """Derive a Su-Field model from an already-identified TC (ADR-007).
+
+    Called at the Create stage (inside solve_triz_layered) when the
+    request arrives without SF fields. Returns None on LLM/parse failure
+    or when the TC is too abstract to yield a meaningful S1/S2/F triple —
+    L3 then degrades gracefully (see ADR-007 §Consequences).
+    """
+    try:
+        prompt = SU_FIELD_DERIVATION_FROM_TC.format(
+            engineering_statement=engineering_statement or "",
+            improving_param=improving_param,
+            improving_name=get_param_name(improving_param) or "",
+            worsening_param=worsening_param,
+            worsening_name=get_param_name(worsening_param) or "",
+            natural_description=natural_description or engineering_statement or "",
+        )
+        raw = call_llm_json(ANALYST_SYSTEM, prompt, max_tokens=512)
+        data = json.loads(raw)
+        model = SuFieldModel(
+            S1=str(data.get("S1") or "").strip(),
+            S2=str(data.get("S2") or "").strip(),
+            F=str(data.get("F") or "").strip(),
+            state=data.get("state") or "unknown",
+        )
+        # If everything is empty, treat as "no meaningful derivation"
+        if not (model.S1 or model.S2 or model.F):
+            logger.info(
+                "derive_su_field_from_tc: empty Su-Field (ip=%s, wp=%s) — L3 will degrade",
+                improving_param, worsening_param,
+            )
+            return None
+        return model
+    except Exception as exc:  # noqa: BLE001 — failure must not break L1/L2
+        logger.warning(
+            "derive_su_field_from_tc failed (ip=%s, wp=%s): %s",
+            improving_param, worsening_param, exc,
+        )
+        return None
 
 
 def extract_assumptions(req: AssumptionExtractRequest) -> AssumptionExtractResponse:

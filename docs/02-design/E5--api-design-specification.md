@@ -194,12 +194,21 @@ ISO 8601 + UTC（e.g. `2026-04-15T10:00:00Z`）。
 | POST | `/contradictions/{cid}/formalize` | `ContradictionFormalizeResponse` |
 | POST | `/contradictions/{cid}/decompose` | `ContradictionDecomposeResponse` |
 
+> **ADR-007 (2026-04-15)**: `/contradictions/{cid}/formalize` 已改為 TC-only 合約：
+> - **Response schema**: `type: "TC" | null`（移除 `"PC"` / `"SF"` 舊值）；新增 `rationale: str` 欄位（成功時說明映射理由，失敗時解釋為何無法映射到 39 參數）。
+> - **Deprecated 欄位**（仍保留於 schema 供舊資料讀取，但新寫入不填）：`physical_contradiction`、`sf_substance_1`、`sf_substance_2`、`sf_field`。
+> - **成功條件**：`type="TC"` 且 `improving_param`, `worsening_param` ∈ [1, 39]。
+> - **失敗條件**（不再 downgrade 至 PC）：`type=null` + `rationale` 非空，由前端導引使用者回 Socratic 追問。
+> - 詳見 [ADR-007](../01-define/adrs/ADR-007-tc-only-explore-pc-sf-derivation-in-create.md) 與 E3 Appendix B §B.0。
+
 ### 7.5 資源：TRIZ (`triz.py`) ★ 核心
 | Method | Path | Response |
 |---|---|---|
 | POST | `/triz/solve` | `TrizLookupResponse` |
 | POST | `/triz/sufield` | `SuFieldResponse` |
 | POST | `/triz/solve-layered` | `SolveTrizLayeredResponse` |
+
+> **ADR-007 (2026-04-15)**: `/triz/solve-layered` 若 request 缺 `sf_substance_1/2`、`sf_field`、`physical_contradiction` 欄位，後端於 agent 入口**自動派生**（`analyst.derive_su_field_from_tc` + `analyst.decompose_tc_to_pcs`）。派生產物僅於本次 response 回傳，**不回寫** `contradictions` 表。若 SF 派生失敗，L3 降級為 warning，L1/L2 不受影響。詳見 [ADR-007](../01-define/adrs/ADR-007-tc-only-explore-pc-sf-derivation-in-create.md) 與 E3 Appendix B §B.0。
 
 ### 7.6 資源：SCAMPER / Subsystem (`scamper.py`)
 | Method | Path | Response |
