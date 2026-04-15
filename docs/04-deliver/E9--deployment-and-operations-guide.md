@@ -51,40 +51,97 @@ Development → Staging → Production
 
 ## 🔄 CI/CD Pipeline
 
-**現況**：無 CI/CD pipeline（ADR-004 明確不納入 v1.0 範圍）。v1.0 採手動部署。
+> ⚠️ **本專案 v1.0 CI/CD 依 ADR-004 暫排除；以下為 v1.1 規劃範本**。v1.0 採手動部署；以下 YAML 範例為規劃交付物，Owner：DevOps TBD by 2026-Q3 TBD。
 
-**v1.1 規劃** — TBD by 2026-Q3 TBD（Owner：DevOps TBD）：
+**現況**：無 CI/CD pipeline。各 commit 由 engineer 手動於本機執行 lint / test / build，部署由 Release Eng. TBD 手動觸發 `docker-compose up -d --build`。
+
+**v1.1 規劃** — 三階段 GitHub Actions / GitLab CI 範本：
 
 ### 1. Build Stage
+
 ```yaml
-build:
-  steps:
-    - checkout: code
-    - install: npm ci（前端）／ pip install -e ".[dev]"（後端）
-    - lint: npm run lint + ruff check backend/app
-    - test: npm run test + pytest backend/tests
-    - docker_build: frontend + backend images
+# .github/workflows/build.yml (v1.1 TBD — DevOps TBD by 2026-Q3 TBD)
+name: Build
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with: { node-version: '22', cache: 'npm' }
+      - name: Install frontend deps
+        run: npm ci
+      - name: Lint + Build frontend
+        run: npm run lint && npm run build
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Install backend deps
+        run: pip install -e "./backend[dev]"
+      - name: Lint backend
+        run: ruff check backend/app
+      - name: Docker build
+        run: |
+          docker build -t rd-copilot-frontend:${{ github.sha }} .
+          docker build -t rd-copilot-backend:${{ github.sha }} ./backend
 ```
 
 ### 2. Test Stage
+
 ```yaml
+# .github/workflows/test.yml (v1.1 TBD — QA Lead TBD by 2026-Q3 TBD)
 test:
+  needs: build
+  runs-on: ubuntu-22.04
   steps:
-    - deploy: staging (docker-compose)
-    - smoke: curl /health + frontend index
-    - e2e: Playwright（ADR-004 規劃 1 個 smoke test）
+    - name: Unit tests — frontend
+      run: npm run test -- --run
+    - name: Unit tests — backend
+      run: pytest backend/tests -q
+    - name: Deploy to staging (docker-compose)
+      run: docker compose -f docker-compose.staging.yml up -d
+    - name: Smoke — health
+      run: |
+        curl --fail --retry 5 --retry-delay 3 http://localhost:8000/health
+        curl --fail http://localhost:8080
+    - name: E2E — Playwright smoke (ADR-004 1 scenario)
+      run: npx playwright test tests/e2e/smoke.spec.ts
 ```
 
 ### 3. Deploy Stage
+
 ```yaml
+# .github/workflows/deploy.yml (v1.1 TBD — Release Eng. TBD by 2026-Q3 TBD)
 deploy:
-  strategy: rolling（docker-compose restart 或 K8s rolling update）
+  needs: test
+  if: github.ref == 'refs/heads/main'
+  runs-on: ubuntu-22.04
+  environment: production
   steps:
-    - apply: supabase migrations（`supabase/migrations/`）
-    - push: images
-    - restart: containers
-    - verify: /health + smoke
+    - name: Apply Supabase migrations
+      run: supabase db push --db-url ${{ secrets.SUPABASE_DB_URL }}
+    - name: Push images to registry
+      run: |
+        docker push ${REGISTRY}/rd-copilot-frontend:${{ github.sha }}
+        docker push ${REGISTRY}/rd-copilot-backend:${{ github.sha }}
+    - name: Rolling restart (docker-compose)
+      run: ssh deploy@prod "cd /srv/rd-copilot && docker compose pull && docker compose up -d"
+    - name: Verify
+      run: curl --fail --retry 10 --retry-delay 5 https://api.prod/health
+    - name: Rollback on failure
+      if: failure()
+      run: ssh deploy@prod "cd /srv/rd-copilot && ./rollback.sh"
 ```
+
+### Pipeline 觸發策略（v1.1 規劃）
+
+| 事件 | Build | Test | Deploy Staging | Deploy Prod |
+|------|-------|------|----------------|-------------|
+| PR opened | ✅ | ✅ | ❌ | ❌ |
+| Merge to `main` | ✅ | ✅ | ✅ | ❌（需 manual approve）|
+| Tag `v*.*.*` | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
@@ -132,9 +189,22 @@ curl http://localhost:8000/health
 open http://localhost:8080
 ```
 
-### v1.1+ — Rolling / Blue-Green（規劃）
+### v1.1+ — 三種策略概念與可行性評估
 
-Rolling / Blue-Green / Canary 策略 TBD by 2026-Q4 TBD（Owner：DevOps TBD）。目前單機 docker-compose 採「停機升級」策略，窗口 < 2 分鐘。
+本專案為 **BaaS-First + 單機 docker-compose**（ADR-001），下表對三種主流策略作概念說明與本專案適用性評估：
+
+| 策略 | 概念 | Supabase 情境 | docker-compose 情境 | v1.1 建議 |
+|------|------|---------------|---------------------|-----------|
+| **Blue-Green** | 並存兩套完整環境（Blue = 現行、Green = 新版），驗證後切換流量。切換瞬間完成，rollback 只需切回 Blue。 | Supabase schema 為單一 DB；需以 migration 向後相容方式實作（expand-then-contract pattern）。Auth / Storage 無法同時並存兩版。 | 可於同機起兩組 compose project（`-p blue` / `-p green`），用 nginx upstream 切換。需雙份埠或前置反代。 | ⚠️ 部分可行 — 應用層可做，DB 層受限於 Supabase 單實例。Owner：DevOps TBD by 2026-Q4 TBD |
+| **Rolling** | 逐批替換實例（如 10 個 pod 每次替換 2 個），新舊版本短暫共存。 | Supabase 不影響（託管）。 | 單機單副本的 compose 無法 rolling；需擴展為 `deploy.replicas: N` + 外部 LB，或遷移至 K8s / Swarm。 | ✅ 推薦目標 — 配合 K8s 遷移或 compose scale。Owner：DevOps TBD by 2026-Q4 TBD |
+| **Canary** | 將小比例流量（如 5%）導向新版，觀察錯誤率 / 指標後逐步擴大。 | N/A 單機部署 — 無流量分流基礎設施。 | **N/A** — 單節點 docker-compose 無法做流量分流；需先具備 LB (nginx/envoy/istio) 權重路由。 | ❌ 不納入 v1.1；v1.2 + K8s + 服務網格再評估。Owner：Infra TBD by 2026-Q4 TBD |
+
+### v1.0 實際採用策略
+
+**停機升級（Recreate）** — docker-compose 預設行為：
+- 停機窗口 < 2 分鐘（pull image + recreate container）
+- 公告窗口：發布前 30 分鐘 Slack 通知（Owner TBD by 2026-Q2 TBD）
+- 風險：Supabase 連線中斷約 15 秒（ADR-003 retry 可吸收）
 
 ---
 
@@ -161,14 +231,27 @@ Rolling / Blue-Green / Canary 策略 TBD by 2026-Q4 TBD（Owner：DevOps TBD）�
 
 ## 🔄 Rollback Procedures
 
-### Feature-level Runbook（已存在，以下引用不重複內容）
+### 決策樹（先判斷影響範圍再選 runbook）
 
-本專案已有兩份場景級 runbook，部署遇到以下問題請直接依據：
+```
+發生問題
+  ├─ 單一 feature flag 可關閉？
+  │    ├─ TRIZ Layered 問題 → operations/TRIZ_Layered_Rollout_Runbook.md
+  │    └─ PC Decomposition 問題 → operations/runbook_pc_decomposition.md
+  ├─ 多模組皆異常 / 全站 5xx → Release-level rollback（本節下方）
+  └─ Supabase migration 錯誤 → DBA 手動 revert（見下方 Step 3）
+```
+
+### Feature-level Runbook（已存在，本指南不重複內容，請直接引用）
+
+本專案已有兩份場景級 runbook，部署遇到對應問題請直接依據：
 
 - **TRIZ Layered Drill-Down 灰度切換與回退**：[`operations/TRIZ_Layered_Rollout_Runbook.md`](operations/TRIZ_Layered_Rollout_Runbook.md)
   - 涵蓋 S1~S4 四階段切換、`VITE_TRIZ_LAYERED_MODE` flag 回退、`layered_solution` JSONB 相容性
+  - Owner：TRIZ Feature Team（見 runbook metadata）
 - **PC Decomposition 緊急停用**：[`operations/runbook_pc_decomposition.md`](operations/runbook_pc_decomposition.md)
   - 涵蓋前端 early-return 停用、後端停用、Migration 009 回滾
+  - Owner：Backend Lead（見 runbook metadata）
 
 ### Release-level Rollback（docker-compose）
 

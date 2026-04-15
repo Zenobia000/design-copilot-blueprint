@@ -50,6 +50,117 @@ OpenAPI 文件由 FastAPI runtime 自動產出，不再手寫 `openapi.yaml`。
 
 ---
 
+## 📚 本專案文檔清單 (Documentation Inventory)
+
+> 由 `docs/**/*.md` 掃描於 2026-04-15 產出。`_superseded/` 與 `_meeting-minutes/` 內容略。Owner 為 TBD 者皆 `TBD — <owner TBD> by 2026-Q3 TBD`。
+
+### Hub & MOC
+
+| 路徑 | 類型 | Owner | 上次審查 |
+|------|------|-------|----------|
+| `docs/README.md` | Hub / Reading Paths | Tech Lead | 2026-04-15 |
+| `docs/00-discover/_MOC.md` | MOC | Product TBD | 2026-04-15 |
+| `docs/01-define/_MOC.md` | MOC | Tech Lead | 2026-04-15 |
+| `docs/02-design/_MOC.md` | MOC | Tech Lead | 2026-04-15 |
+| `docs/03-develop/_MOC.md` | MOC | Tech Lead | 2026-04-15 |
+| `docs/04-deliver/_MOC.md` | MOC | DevOps TBD | 2026-04-15 |
+| `docs/_domain-knowledge/_MOC.md` | MOC | Tech Lead | 2026-04-15 |
+
+### 00-discover
+
+| 路徑 | 類型 | Owner | 上次審查 |
+|------|------|-------|----------|
+| `docs/00-discover/E1--project-brief-and-prd.md` | Essential | Product | 2026-04-15 |
+| `docs/00-discover/E1x--stakeholder-brief.md` | Supplement | Product TBD | 2026-04-15 |
+| `docs/00-discover/E1x--user-research-synthesis.md` | Supplement | Product TBD | 2026-04-15 |
+| `docs/00-discover/E1x--competitive-landscape.md` | Supplement | Product TBD | 2026-04-15 |
+| `docs/00-discover/E1x--market-sizing.md` | Supplement | Product TBD | 2026-04-15 |
+| `docs/00-discover/E1x--user-journey-map.md` | Supplement | UX TBD | 2026-04-15 |
+| `docs/00-discover/E1x--privacy-compliance-seed.md` | Supplement | Legal TBD | 2026-04-15 |
+| `docs/00-discover/E1x--assumption-risk-register.md` | Supplement | Tech Lead | 2026-04-15 |
+| `docs/00-discover/E3x--first-principles-analysis.md` | Supplement | Tech Lead | 2026-04-15 |
+
+### 01-define
+
+| 路徑 | 類型 | Owner | 上次審查 |
+|------|------|-------|----------|
+| `docs/01-define/E2--statement-of-work.md` | Essential | Tech Lead | 2026-04-15 |
+| `docs/01-define/E3--architecture-and-design.md` | Essential | Tech Lead | 2026-04-15 |
+| `docs/01-define/E3x--wbs-development-plan.md` | Supplement | Tech Lead | 2026-04-15 |
+| `docs/01-define/E3x--wbs-development-plan-addendum.md` | Supplement | Tech Lead | 2026-04-15 |
+| `docs/01-define/E3x--system-interaction-flow.md` | Supplement | Backend | 2026-04-15 |
+| `docs/01-define/adrs/ADR-001-baas-first-architecture.md` | ADR | Tech Lead | 2026-04-15 |
+| `docs/01-define/adrs/ADR-002-server-side-business-logic.md` | ADR | Tech Lead | 2026-04-15 |
+| `docs/01-define/adrs/ADR-003-llm-service-hardening.md` | ADR | Backend | 2026-04-15 |
+| `docs/01-define/adrs/ADR-004-qa-devops-infrastructure.md` | ADR | DevOps TBD | 2026-04-15 |
+| `docs/01-define/adrs/ADR-005-scope-expansion.md` | ADR | Tech Lead | 2026-04-15 |
+| `docs/01-define/wbs-workstreams/WS-D--triz-layered-drilldown-development.md` | WBS | Feature Owner | 2026-04-15 |
+| `docs/01-define/wbs-workstreams/WS-E--subsystem-interface-development.md` | WBS | Feature Owner | 2026-04-15 |
+| `docs/01-define/wbs-workstreams/WS-F--tc-to-multipc-decomposition.md` | WBS | Feature Owner | 2026-04-15 |
+| `docs/01-define/wbs-workstreams/WS-G--l3-sf-parallel-check.md` | WBS | Feature Owner | 2026-04-15 |
+| `docs/01-define/wbs-workstreams/WS-H--playwright-e2e-followup.md` | WBS | QA TBD | 2026-04-15 |
+
+### 02-design
+
+| 路徑 | 類型 | Owner | 上次審查 |
+|------|------|-------|----------|
+| `docs/02-design/E5--api-design-specification.md` | Essential | Backend | 2026-04-15 |
+| `docs/02-design/E5x--system-design-overview.md` | Supplement | Tech Lead | 2026-04-15 |
+| `docs/02-design/E5x--bdd-scenarios.md` | Supplement | QA TBD | 2026-04-15 |
+| `docs/02-design/E5x--project-structure-guide.md` | Supplement | Tech Lead | 2026-04-15 |
+| `docs/02-design/E5x--frontend-architecture.md` | Supplement | Frontend | 2026-04-15 |
+| `docs/02-design/E5x--frontend-information-architecture.md` | Supplement | Frontend | 2026-04-15 |
+| `docs/02-design/E6x--schema-codegen-workflow.md` | Supplement | Backend | 2026-04-15 |
+| `docs/02-design/E7x--e2e-manual-scripts/explore_pc_decomposition.md` | Supplement | QA TBD | 2026-04-15 |
+| `docs/02-design/specs/E5x--file-dependencies.md` | Spec | Tech Lead | 2026-04-15 |
+| `docs/02-design/specs/E5x--class-relationships.md` | Spec | Tech Lead | 2026-04-15 |
+| `docs/02-design/specs/modules/E5x--module-spec-index.md` | Spec | Tech Lead | 2026-04-15 |
+| `docs/02-design/specs/modules/triz-solver.md` | Spec | Backend | 2026-04-15 |
+| `docs/02-design/specs/modules/anti-anchor.md` | Spec | Backend | 2026-04-15 |
+| `docs/02-design/specs/modules/subsystem-decomposer.md` | Spec | Backend | 2026-04-15 |
+| `docs/02-design/specs/explore/E5x--subsystem-persistence-policy.md` | Spec | Backend | 2026-04-15 |
+| `docs/02-design/specs/explore/E5x--tc-to-multipc-type-alignment.md` | Spec | Backend | 2026-04-15 |
+| `docs/02-design/specs/explore/E5x--three-tier-tree-review-checklist.md` | Spec | Tech Lead | 2026-04-15 |
+| `docs/02-design/specs/triz/E5x--triz-layered-drilldown-optimization.md` | Spec | Backend | 2026-04-15 |
+| `docs/02-design/specs/triz/E5x--triz-multi-solution-adoption-strategy.md` | Spec | Backend | 2026-04-15 |
+| `docs/02-design/specs/ux/E5x--create-ux-spec.md` | Spec | UX TBD | 2026-04-15 |
+| `docs/02-design/specs/review-templates/E5x--pre-cad-review-template.md` | Template | Tech Lead | 2026-04-15 |
+| `docs/02-design/specs/review-templates/E5x--must-rulebook-template.md` | Template | Tech Lead | 2026-04-15 |
+| `docs/02-design/specs/review-templates/E5x--evidence-matrix-risk-register-template.md` | Template | Tech Lead | 2026-04-15 |
+
+### 03-develop
+
+| 路徑 | 類型 | Owner | 上次審查 |
+|------|------|-------|----------|
+| `docs/03-develop/GR6x--code-review-guide.md` | Gate Review | Tech Lead | 2026-04-15 |
+
+### 04-deliver
+
+| 路徑 | 類型 | Owner | 上次審查 |
+|------|------|-------|----------|
+| `docs/04-deliver/E8--security-and-readiness-checklists.md` | Essential | Security Lead TBD | 2026-04-15 |
+| `docs/04-deliver/E9--deployment-and-operations-guide.md` | Essential | DevOps TBD | 2026-04-15 |
+| `docs/04-deliver/E9x--documentation-maintenance-guide.md` | Essential | Tech Writer TBD | 2026-04-15 |
+| `docs/04-deliver/E9x--user-manual-v0.1.md` | User Doc | Product / Tech Writer TBD | 2026-04-15 |
+| `docs/04-deliver/operations/TRIZ_Layered_Rollout_Runbook.md` | Runbook | TRIZ Feature Team | 2026-04-15 |
+| `docs/04-deliver/operations/runbook_pc_decomposition.md` | Runbook | Backend Lead | 2026-04-15 |
+
+### _domain-knowledge
+
+| 路徑 | 類型 | Owner | 上次審查 |
+|------|------|-------|----------|
+| `docs/_domain-knowledge/SCAMPER_TRIZ.md` | Methodology | Tech Lead | 2026-04-15 |
+| `docs/_domain-knowledge/KT_Robust_決策框架.md` | Methodology | Tech Lead | 2026-04-15 |
+| `docs/_domain-knowledge/E3x--methodology-overview.md` | Methodology | Tech Lead | 2026-04-15 |
+| `docs/_domain-knowledge/VC00--workflow-manual.md` | Methodology | Tech Lead | 2026-04-15 |
+| `docs/_domain-knowledge/VC01--development-workflow-cookbook.md` | Methodology | Tech Lead | 2026-04-15 |
+| `docs/_domain-knowledge/系統規格定義書.md` | Methodology | Tech Lead | 2026-04-15 |
+| `docs/_domain-knowledge/系統性決策流程.md` | Methodology | Tech Lead | 2026-04-15 |
+
+**總計**：約 60+ 份（不計 `_superseded/`）。Ownership 盤點 TBD — Tech Writer TBD by 2026-Q3 TBD。
+
+---
+
 ## 📝 Documentation Standards
 
 ### Writing Guidelines
@@ -116,14 +227,17 @@ docs/
 
 ### Documentation Metrics
 
-尚未導入分析平台。待 GitHub Pages / MkDocs 建置後追蹤：
-- 頁面瀏覽量
-- 用戶回饋（helpful / not helpful）
-- 搜尋關鍵字
-- 停留時間
-- 跳出率
+本專案以「**可重複量測且低成本**」為原則，選 5 個具體指標：
 
-Owner：TBD by 2026-Q4 TBD。
+| # | 指標 | 目標 | 蒐集方式 | 頻率 | Owner |
+|:-:|------|------|----------|------|-------|
+| M1 | **Broken link 數** | 每季 = 0 | `markdown-link-check docs/**/*.md`（可寫入 CI）；v1.0 手動執行 | 每季 | Tech Writer TBD by 2026-Q3 TBD |
+| M2 | **文件過期率** | >3 個月未更新文件占比 < 20% | 腳本掃 metadata「最後更新」欄位 vs `git log -1 --format=%cd` 比對 | 每季 | Tech Writer TBD by 2026-Q3 TBD |
+| M3 | **MOC 覆蓋率** | 所有 `.md` 皆被某 `_MOC.md` 連到（孤島 = 0） | `grep` 比對 glob 清單 vs MOC 內連結 | 每季 | Tech Writer TBD by 2026-Q3 TBD |
+| M4 | **ADR 補完率** | 每個 architectural decision 有 ADR 或 supersede 紀錄 | code review 時交叉核對；季度 retrospective | 每季 | Tech Lead |
+| M5 | **頁面瀏覽量 / 搜尋關鍵字**（v1.1） | 建立 baseline 後定目標 | GitHub Pages + Plausible / GA4（匿名） | 月 | Tech Writer TBD by 2026-Q4 TBD |
+
+v1.0 先落地 M1-M4（皆可從 repo 量測，無須外部平台）；M5 於 MkDocs 上線後啟動。
 
 ---
 
@@ -139,9 +253,24 @@ Owner：TBD by 2026-Q4 TBD。
 | **ADR（Markdown）** | 決策紀錄 | `docs/01-define/adrs/ADR-*.md` |
 | **_MOC.md** | 各資料夾入口 | 對齊 Zettelkasten 風格 |
 
-### 評估中
-- **GitBook / MkDocs / Docusaurus**：靜態站 — TBD by 2026-Q4 TBD
-- **Confluence**：若需對接企業客戶 — TBD
+### 工具選型比較（v1.1 決策）
+
+針對「是否加一層靜態文件站？」的決策，依本專案 **BaaS-First + 少量 engineer（<10 人）** 情境比較：
+
+| 工具 | 授權 / 託管 | 學習成本 | 與 Git 整合 | 適合情境 | 本專案評估 |
+|------|-------------|----------|-------------|----------|------------|
+| **純 Git + Markdown + _MOC.md（現況）** | Free / self | 低 | 原生 | 小型團隊、engineer-centric | ✅ v1.0 採用；MOC 可手動維護 |
+| **MkDocs + Material theme** | Apache-2.0 / self-host（GitHub Pages） | 低（YAML 配置） | 一鍵 build → Pages | engineer 友善、搜尋 / 導航好 | 🟢 **推薦 v1.1 目標** |
+| **Docusaurus** | MIT / self-host | 中（React-based） | GitHub Actions | 多版本文件、多語系 | 🟡 過度 — 無多版本需求 |
+| **GitBook** | SaaS（Free tier 受限）/ 付費 | 極低（WYSIWYG） | Git sync 但非核心 | 非技術貢獻者為主 | 🟡 SaaS 成本 + 非 engineer-centric |
+| **Confluence** | 付費 SaaS | 中 | 差（export-based） | 企業客戶對接 | 🔴 Git 脫鉤、成本高 |
+
+**決策建議**（v1.1）：
+
+1. **保留**純 Git + Markdown + `_MOC.md` 作為真實來源（source of truth）。
+2. **新增** MkDocs-Material 作為靜態站產出器：`mkdocs.yml` 指向 `docs/`，CI 自動 build 並 deploy 至 GitHub Pages。
+3. 不改變 engineer workflow（仍在 repo 內編輯 `.md`），外部讀者獲得搜尋 / 導航。
+4. Owner：Tech Writer TBD by 2026-Q4 TBD。
 
 ### Diagram Tools
 

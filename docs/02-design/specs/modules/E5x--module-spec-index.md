@@ -13,7 +13,7 @@
 
 ## 目的
 
-將 E3 Appendix 架構拆成可機器執行、可 TDD 的模組規格清單。每一欄對應 `backend/app/` 或 `src/` 下的實體模組。**三個 pilot 模組**已展開完整 DbC + 測試案例（見下表 `✓ Pilot` 欄）。
+將 E3 Appendix 架構拆成可機器執行、可 TDD 的模組規格清單。每一欄對應 `backend/app/` 或 `src/` 下的實體模組。**五個 pilot 模組**已展開完整 DbC + 測試案例（見下表 `✓ Pilot` 欄）。
 
 ---
 
@@ -25,9 +25,9 @@
 |---|---|---|---|---|---|
 | 1 | `TrizSolverAgent` | `agents/triz_solver.py` | TRIZ 分層 drill-down 解矛盾 (L1/L2/L3) | Appendix B | ✓ [`triz-solver.md`](triz-solver.md) |
 | 2 | `AnalystAgent` | `agents/analyst.py` | Brief → 結構化約束/KPI | Appendix A | TBD — RD by 2026-05 |
-| 3 | `EvaluatorAgent` | `agents/evaluator.py` | MUST/WANT/AC 六維評分 | Appendix D | TBD — RD by 2026-05 |
+| 3 | `EvaluatorAgent` | `agents/evaluator.py` | MUST/WANT/AC 六維評分 | Appendix D | ✓ [`evaluator.md`](evaluator.md) |
 | 4 | `TrizCriticAgent` | `agents/triz_critic.py` | L1 層信心度評估、觸發 drill-down | Appendix B | (subsumed by TrizSolver pilot) |
-| 5 | `KnowledgeAgent` / `KnowledgeWritebackAgent` | `agents/knowledge.py`, `agents/knowledge_wb.py` | RAG + 知識回寫 | Appendix A §3 | TBD — Knowledge team by 2026-06 |
+| 5 | `KnowledgeAgent` / `KnowledgeWritebackAgent` | `agents/knowledge.py`, `agents/knowledge_wb.py` | RAG + 知識回寫 | Appendix A §3 | ✓ [`knowledge.md`](knowledge.md) (search + ingest; writeback TBD) |
 | 6 | `ScamperFeedbackAgent` | `agents/scamper_feedback.py` | SCAMPER → 新矛盾反饋 | Appendix E | TBD |
 | 7 | `AntiAnchorAgent` | (embedded in router `anti_anchor.py`) | 反向路線生成 | Appendix C | ✓ [`anti-anchor.md`](anti-anchor.md) |
 | 8 | `SubsystemDecomposerAgent` | (service in `scamper.py` + `spatial_*`) | 子系統發現與介面契約 | Appendix A + E | ✓ [`subsystem-decomposer.md`](subsystem-decomposer.md) |
@@ -62,10 +62,12 @@
 
 ## Pilot Spec 選擇理由
 
-三個 pilot 代表三條核心路線：
+五個 pilot 代表五條核心路線：
 - **Forward TRIZ** → `triz-solver.md`（最複雜 AI 編排）
 - **Reverse Anti-Anchor** → `anti-anchor.md`（路徑依賴打破邏輯）
 - **Subsystem Decomposer** → `subsystem-decomposer.md`（跨 agent/service 協作）
+- **Pre-CAD Evaluator** → `evaluator.md`（Gate 決策 + MUST/WANT 六維評分）
+- **Knowledge RAG** → `knowledge.md`（citation / 多模態 ingest，所有 agent 共用）
 
 其餘模組採 lazy-spec 策略：進 WBS 前由 owner 依 [`VibeCoding 07 模板`](../../../../rd_assistant_design_system/VibeCoding_Workflow_Templates/07_module_specification_and_tests.md) 填寫。
 

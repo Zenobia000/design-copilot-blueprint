@@ -98,7 +98,7 @@
 >
 > 張三打開 Brief，裡面寫著「整合式中置馬達，功率密度提升 20%，成本降 15%」。他心裡閃過三個熟悉的架構，但去年就是因為太快收斂到「安全牌」方案，後來被客戶退回重做。
 >
-> 這次他打開 RD Design Copilot，把 Brief 和上一代測試報告丟進去。系統幫他拆解出 12 條硬約束、識別出 3 對矛盾（功率密度 vs. 散熱面積、減重 vs. 結構剛性、成本 vs. 材料等級），並用索克拉底問答逼他把「以為是常識」的前提攤開來看。
+> 這次他打開 RD Design Copilot，把 Brief 和上一代測試報告丟進去。系統幫他拆解出 12 條硬約束、識別出 3 對矛盾（功率密度 vs. 散熱面積、減重 vs. 結構剛性、成本 vs. 材料等級），並用蘇格拉底問答逼他把「以為是常識」的前提攤開來看。
 >
 > 下午他跑了 Anti-Anchor Sprint，發現一條自己從沒想過的非同軸佈局方案。雖然直覺告訴他「不太可能」，但系統標出這條路線的假設和需要驗證的最小實驗——只要一次 thermal simulation 就能判斷。
 >
@@ -205,6 +205,88 @@
 | A4 | 客戶有足夠的過往案例可供 RAG 學習 | 知識庫品質差 | 資料盤點 |
 | A5 | MUST Rulebook 的分層證據要求 (E0-E1 / E2+) 足以區分粗篩與精篩 | 篩選品質不一致 | Pilot 專案驗證 |
 | A6 | Anti-Anchor Sprint 能有效打破路徑依賴 | 工程師抗拒或流於形式 | Alpha 用戶觀察 |
+
+---
+
+## 7A. 使用者故事與允收標準 (User Stories × UAT)
+
+> **目的**：將第 2、3 節的 Persona / Day-in-the-Life / 痛點 refactor 成 Given/When/Then 風格的可驗證 User Story，供後續 BDD ([`../02-design/E5x--bdd-scenarios.md`](../02-design/E5x--bdd-scenarios.md)) 與 E2E 手測腳本 ([`../02-design/E7x--e2e-manual-scripts/`](../02-design/E7x--e2e-manual-scripts/)) 對應。
+>
+> **Story 格式**：`As [role], I want [capability], so that [benefit]`
+> **UAT 格式**：Given/When/Then 三段；每條 3-5 項可驗證 checklist。
+
+### 7A.1 使用者故事一覽
+
+| Story ID | 角色 (As) | 能力 (I want) | 益處 (So that) | 對應痛點 | 對應 BDD Feature |
+|----------|----------|---------------|----------------|---------|-----------------|
+| **US-01** | RD 工程師 | 上傳 Brief 後自動拆解出硬約束 / 矛盾 / 假設 | 不靠記憶列清單、避免漏項 | 假設隱藏、腦內庫存有限 | Feature 1 (TRIZ) Background |
+| **US-02** | RD 工程師 | 在 Create 頁以分層 drill-down 探索 TRIZ 解（L1→L2→L3） | 解耦「快速看答案」與「深入分析」，節省時間 | 經驗鎖定 | Feature 1 |
+| **US-03** | RD 工程師 | 啟動 Anti-Anchor Sprint 產生 ≥3 條反向路線 | 打破自己習慣的「安全牌」慣性 | 經驗鎖定、腦內庫存有限 | Feature 2 (Anti-Anchor) |
+| **US-04** | RD 工程師 | 為每條路線生成 Validation Passport 並追蹤假設狀態 | 在後期返工前先暴露風險 | 風險後置、假設隱藏 | Feature 2 |
+| **US-05** | RD 主管 | 在 Pre-CAD Gate 以六維評分 + citations 審查方案 | 能據實質證據簽核，而非憑直覺 | 決策依據不足、證據缺口不可見 | Feature 3 (Pre-CAD) |
+| **US-06** | RD 主管 | 看見 MUST 硬限制的 Pass/Conditional/Fail 分類 | 明確區分「淘汰」與「保留但補證據」 | 證據缺口不可見 | Feature 3 |
+| **US-07** | RD 工程師 | 用 Evidence Matrix 為每個 KT 決策項關聯證據來源 | 日後回溯「當初為什麼這麼選」有依據 | 決策不可追溯 | — (TBD by 2026-05-15) |
+| **US-08** | PM | 從 Dashboard 取得單一 project 的階段 / gate / 風險聚合摘要 | 不用在多個頁面拼湊進度 | 溝通斷層 | — (TBD) |
+| **US-09** | RD 工程師 | 對 AI 產生的每一條建議點開來源 (KB- / WEB- citation) | 判斷 AI 是否幻覺或資料過時 | 幻覺風險、AI 不可解釋 | Cross-cutting |
+| **US-10** | RD 工程師 | 將已驗證/推翻的假設回寫知識庫 | 團隊下次設計可以複用 | 經驗無法沉澱 | — (TBD) |
+| **US-11** | 品質工程師 | 在 Pre-CAD Gate 看到主要失效機制與歷史失效對照 | 把 FMEA 議題提前到概念階段 | 風險後置 | Feature 3 (§失效機制) |
+| **US-12** | 高階主管 | 看到一頁式的 Gate 決策摘要（MUST / WANT / Evidence） | 快速理解 go/no-go 的關鍵理由 | 溝通斷層 | — (TBD) |
+
+### 7A.2 UAT 細則（選主要 6 條展開；其餘延後至對應 BDD）
+
+#### UAT-01（對應 US-01）：Brief 上傳 → 自動拆解
+- **Given** 使用者登入專案、未凍結 Brief
+- **When** 上傳 PDF + 貼入文字 Brief 並點 "AI Extract"
+- **Then**：
+  - [ ] 於 10 秒內回傳 Constraints / KPIs / Contradictions 三區塊
+  - [ ] 每個 Constraint 含分類 (hard / soft) 與 source (段落 / 行號)
+  - [ ] 至少 1 對 Contradiction 以「improving vs worsening」格式呈現
+  - [ ] 用戶可編輯/刪除每一項；編輯後 status 改為 user_modified
+
+#### UAT-02（對應 US-02）：TRIZ 分層解矛盾
+- **Given** 已凍結 Brief 且存在 ≥1 formalized contradiction
+- **When** 使用者點 Create Tab ①「Solve Layered」
+- **Then**：
+  - [ ] L1 surface card 於 5s 內串流顯示（skeleton → 實際內容）
+  - [ ] L1 critic confidence < 0.6 時自動繼續 L2，否則顯示 drill-down 按鈕
+  - [ ] 每 InventivePrinciple 含至少 1 筆 EvidenceReference
+  - [ ] 多解情況下顯示 Phase B directive
+
+#### UAT-03（對應 US-03）：Anti-Anchor 路線
+- **Given** 至少一個 `confirmed` anchor solution
+- **When** 使用者於 Explore 頁點 "Generate Anti-Anchor Routes"
+- **Then**：
+  - [ ] 回傳恰好 3 條（預設）路線，`diff_score > 0.3`
+  - [ ] 每條路線有 `ac_risk_level ∈ {L, M, H, H*}`
+  - [ ] `diff_score` 由高至低排序
+  - [ ] 點單條路線可進入 Validation Passport（至少 2 條 assumption）
+
+#### UAT-05（對應 US-05）：Pre-CAD 六維評分
+- **Given** 已有候選方案 CR-Axxx 且 interface contract 填寫完整
+- **When** 點 "AI Analyze" 產 Pre-CAD report
+- **Then**：
+  - [ ] MUST 6 項回傳 Pass/Conditional/Fail 三分類（非 1-5 分）
+  - [ ] 定性 4 維度（Module Independence / Testability / Failure Mechanism / MVP CAD Effort）以 1-5 分呈現
+  - [ ] 每項評分均附 Artifact ID 或 citation 引用
+  - [ ] 若任一 MUST = Fail → UI 阻擋 "Sign & Pass Gate"
+
+#### UAT-09（對應 US-09）：Citation 可追溯
+- **Given** 頁面顯示任何 AI 建議（TRIZ / SCAMPER / Pre-CAD / Knowledge panel）
+- **When** 使用者點 citation 標籤（KB-xxx 或 WEB-xxx）
+- **Then**：
+  - [ ] 跳 side-panel 顯示 snippet、source_url（若 web）、retrieved_at
+  - [ ] 無 citation 的建議必須標 "No source — human judgement only"
+  - [ ] source_url 若有，必為 HTTPS
+
+#### UAT-11（對應 US-11）：失效機制對照
+- **Given** Pre-CAD report
+- **When** 品質工程師展開「主要風險機制 (Failure Mechanism)」區塊
+- **Then**：
+  - [ ] 顯示「方案最可能怎麼死」條目（熱失控 / 磨損 / 雜訊干擾等）
+  - [ ] 至少引用 1 筆 FMEA / 8D 歷史案例（KB-FMEA-xxx）
+  - [ ] 提供跳轉至 Risk Register 的連結
+
+> 其餘 UAT（04, 06, 07, 08, 10, 12）延後至各對應 BDD feature 補齊 — `TBD — <pm TBD> by 2026-05-15 TBD`。
 
 ---
 

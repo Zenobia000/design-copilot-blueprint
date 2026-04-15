@@ -75,7 +75,7 @@ sequenceDiagram
     RD->>UI: 確認約束（Gate 1）
     Note over UI: Constraint: Draft → Reviewed
 
-    UI->>AA: 啟動索克拉底七類提問 (Step 2)
+    UI->>AA: 啟動蘇格拉底七類提問 (Step 2)
     AA-->>RD: 揭露 10 條隱含假設 + 3 條矛盾
     RD->>UI: 校準矛盾句 (Gate 3)
     Note over UI: Contradiction: Reviewed → Verified
@@ -217,7 +217,7 @@ flowchart TD
 | Step | 使用者動作 | Primary Subsystem | 觸發 Agent | Artifact 狀態轉換 | Appendix 參照 |
 |------|-----------|-------------------|-----------|------------------|--------------|
 | 1 | 上傳 Brief 與素材 | — | Knowledge + Analyst | Constraint: — → Draft → Reviewed | E3 §Tools |
-| 2 | 參與索克拉底問答 | — | Analyst | Contradiction: Draft → Reviewed | E3 §4.1 主序列圖 |
+| 2 | 參與蘇格拉底問答 | — | Analyst | Contradiction: Draft → Reviewed | E3 §4.1 主序列圖 |
 | 3 | 校準 TRIZ 矛盾句 | Forward TRIZ Solver | TRIZ Solver + Analyst | Contradiction: Reviewed → Verified | [Appendix B](E3--architecture-and-design.md#appendix-b-forward-triz-solver-architecture) |
 | 4 | 填寫假設台帳 | — | Analyst + Knowledge | Assumption: Reviewed → Verified | E3 §5.2 |
 | 5-0 | 啟動 Anti-Anchor | Reverse Anti-Anchor | Analyst + Knowledge | Route: — → generated → promoted_candidate | [Appendix C](E3--architecture-and-design.md#appendix-c-reverse-anti-anchor-architecture) |
@@ -239,7 +239,7 @@ flowchart TD
 | 現狀痛點 (PP) | 現狀表現 | 目標體驗流對應點 | 緩解機制 |
 |--------------|---------|-----------------|---------|
 | PP-1 經驗鎖定 | 直覺搜尋過去方案 | Scenario 2 Anti-Anchor + Scenario 1 TRIZ 跨域類比 | Forced Divergence + Anti-Anchor Gate |
-| PP-2 假設隱藏 | 預設答案未明說 | Scenario 1 索克拉底七類提問 | Assumption Challenge (E3 §3.2 機制 1) |
+| PP-2 假設隱藏 | 預設答案未明說 | Scenario 1 蘇格拉底七類提問 | Assumption Challenge (E3 §3.2 機制 1) |
 | PP-3 風險後置 | Proto 才爆問題 | Scenario 3 Pre-CAD Gate + 架構健康度監控 | Phase B 交叉檢查 + 節點>5 強停 |
 | PP-4 決策不可追溯 | 半年後無法回溯 | Scenario 3 Validation Passport + KT Decision Record | 自動留痕（Artifact 狀態流轉） |
 | PP-5 溝通斷層 | PM/RD/主管語言不同 | Step 1 約束改寫 + Step 8 費曼摘要 | 統一 Artifact schema |

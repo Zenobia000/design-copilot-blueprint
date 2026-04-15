@@ -109,26 +109,56 @@
 ## D. 基礎設施與運維安全 (Infrastructure & Operations Security)
 
 ### D.1 網路安全
-- [ ] **防火牆 / 安全組**：依部署環境；目前以 docker-compose 開放 8000/8080 — 正式部署規則 TBD by 2026-Q3 TBD
+- [ ] **防火牆 / 安全組**：依部署環境；目前以 docker-compose 開放 8000/8080 — 正式部署規則 TBD — Infra TBD by 2026-Q3 TBD
 - [ ] **DDoS 防護**：Cloudflare / AWS Shield TBD — Infra TBD by 2026-Q3 TBD
+- [ ] **內網隔離**：FastAPI ↔ Supabase 走公網 HTTPS；VPC peering / Private Link TBD — Infra TBD by 2026-Q4 TBD
 
 ### D.2 機密管理
 - [x] **安全儲存**：`.env` 外部掛載，未入 git（`.gitignore` 已排除）
-- [ ] **權限與輪換**：Supabase / Anthropic key 輪換流程 TBD — Security Lead by 2026-Q3 TBD
+- [x] **Supabase RLS 啟用狀態**：27 張表皆有 RLS policy（`supabase/migrations/002_rls_policies.sql`）
+- [ ] **API Key Rotation**：Supabase service-role key / Anthropic key 輪換週期 TBD — Security Lead TBD by 2026-Q3 TBD
+- [ ] **Secrets Manager**：`.env` → Vault / AWS Secrets Manager 遷移 TBD — DevOps TBD by 2026-Q3 TBD
+- [ ] **Secret Scanning**：git pre-commit / GitGuardian 未整合 TBD — DevOps TBD by 2026-Q2 TBD
 
 ### D.3 Docker / 容器安全
 - [x] **最小化基礎鏡像**：`node:22-alpine` + `nginx:alpine`（前端 multi-stage，見 `Dockerfile`）
-- [ ] **非 Root 用戶**：nginx 預設以 root 啟動 — 硬化 TBD by 2026-Q3 TBD
-- [ ] **鏡像掃描**：Trivy / Snyk 未整合 — TBD by 2026-Q3 TBD
+- [ ] **非 Root 用戶**：nginx 預設以 root 啟動 — 硬化 TBD — DevOps TBD by 2026-Q3 TBD
+- [ ] **鏡像漏洞掃描**：Trivy / Snyk 未整合 — TBD — DevOps TBD by 2026-Q3 TBD
+- [ ] **SBOM 產出**：Syft / CycloneDX TBD — DevOps TBD by 2026-Q4 TBD
+- [ ] **鏡像簽章**：cosign / sigstore TBD — DevOps TBD by 2026-Q4 TBD
 
 ### D.4 日誌與監控
-- [ ] **安全事件日誌**：FastAPI / Supabase log 存在；集中化 TBD by 2026-Q3 TBD
-- [ ] **安全告警**：未配置 — Ops owner TBD by 2026-Q3 TBD
+- [ ] **安全事件日誌**：FastAPI / Supabase log 存在；集中化 TBD — Ops TBD by 2026-Q3 TBD
+- [ ] **安全告警**：未配置 — Ops TBD by 2026-Q3 TBD
+- [ ] **審計日誌**：DB-level audit（Supabase `pgaudit`）TBD — DBA TBD by 2026-Q3 TBD
+- [ ] **異常偵測**：IDS / 行為基線 TBD — Security Lead TBD by 2026-Q4 TBD
+
+### D.5 CI/CD 安全（對齊 ADR-004 v1.1 規劃）
+- [ ] **Pipeline 最小權限**：service principal / OIDC token TBD — DevOps TBD by 2026-Q3 TBD
+- [ ] **依賴鎖定**：`package-lock.json` / `uv.lock` 已存在，但驗證流程 TBD — DevOps TBD by 2026-Q2 TBD
+- [ ] **Artifact 完整性**：images 未簽章（見 D.3）— DevOps TBD by 2026-Q4 TBD
 
 ## E. 合規性 (Compliance)
 
+### E.1 法規識別與適用性
 - [x] **法規識別**：E1x §2 / §7 已列 PDPA、GDPR、SOC 2
-- [ ] **合規性措施**：E1x §7 清單全為 P0/P1 TBD — Legal + Security Lead by 2026-Q2~Q3 TBD
+- [ ] **GDPR 適用性評估**：若有歐盟使用者則適用；目前客戶範圍 TBD — Legal TBD by 2026-Q2 TBD
+- [ ] **台灣 PDPA 遵循聲明**：公司主體為台灣 → 預設適用；對應 DPO TBD — Legal TBD by 2026-Q2 TBD
+
+### E.2 資料主體權利
+- [ ] **使用者刪除權（Right to Erasure）**：Supabase delete cascade 已具備；面向客戶的自助刪除 UI TBD — Product + Backend TBD by 2026-Q3 TBD
+- [ ] **資料可攜權（Data Portability）**：專案匯出功能 TBD — Product TBD by 2026-Q3 TBD
+- [ ] **同意撤回**：Privacy Policy 須提供撤回管道 — Legal TBD by 2026-Q2 TBD
+
+### E.3 資料保留與脫敏
+- [ ] **資料保留策略**：預設保留期限 TBD — Legal TBD by 2026-Q2 TBD（E1x §7 item 4）
+- [ ] **日誌脫敏**：FastAPI 日誌含 prompt 內容（可能含客戶 IP 描述）→ 遮罩策略 TBD — Backend TBD by 2026-Q2 TBD
+- [ ] **測試資料脫敏**：staging DB dump 去識別化 TBD — DBA TBD by 2026-Q3 TBD
+
+### E.4 合規審計與文件
+- [ ] **合規性措施清單**：E1x §7 全為 P0/P1 TBD — Legal + Security Lead TBD by 2026-Q2~Q3 TBD
+- [ ] **DPIA（資料保護影響評估）**：GDPR 要求；TBD — Legal TBD by 2026-Q3 TBD
+- [ ] **SOC 2 差距分析**：若客戶要求則啟動 — Compliance Lead TBD by 2026-Q4 TBD
 
 ## F. 審查結論與行動項 (Review Conclusion & Action Items)
 
@@ -139,18 +169,23 @@
 
 ### 行動項
 
-| # | 行動項 | 負責人 | 預計完成 | 狀態 |
-|:-:|:--|:--|:--|:--|
-| 1 | Privacy Policy / ToS 撰寫 | Legal TBD | 2026-Q2 TBD | 待辦 |
-| 2 | Anthropic DPA 審查 | Legal TBD | 2026-Q2 TBD | 待辦 |
-| 3 | Dependabot / ruff-audit 整合 | DevOps TBD | 2026-Q2 TBD | 待辦 |
-| 4 | API rate limit（FastAPI 層） | Backend TBD | 2026-Q2 TBD | 待辦 |
-| 5 | 日誌 PII 遮罩 | Backend TBD | 2026-Q2 TBD | 待辦 |
-| 6 | nginx CSP / 安全 header | Frontend TBD | 2026-Q3 TBD | 待辦 |
-| 7 | 容器非 root 硬化 | DevOps TBD | 2026-Q3 TBD | 待辦 |
-| 8 | MFA 強制 + 暴力破解強化 | Security Lead TBD | 2026-Q3 TBD | 待辦 |
-| 9 | 滲透測試 | Security Lead TBD | 2026-Q3 TBD | 待辦（E1x §7 item 5）|
-| 10 | IR Plan | Security Lead TBD | 2026-Q3 TBD | 待辦（E1x §7 item 10）|
+| ID | 描述 | Severity | Owner | ETA | 關聯文件 | 狀態 |
+|:--:|:--|:--:|:--|:--|:--|:--:|
+| AI-01 | Privacy Policy / ToS 撰寫 | P0 | Legal TBD | 2026-Q2 TBD | E1x §7 item 7 | 待辦 |
+| AI-02 | Anthropic DPA 審查 | P0 | Legal TBD | 2026-Q2 TBD | E1x §7 item 6；ADR-003 | 待辦 |
+| AI-03 | Dependabot / pip-audit / ruff-audit 整合 | P1 | DevOps TBD | 2026-Q2 TBD | §C.5 | 待辦 |
+| AI-04 | API rate limit（FastAPI 層，slowapi） | P1 | Backend TBD | 2026-Q2 TBD | §C.4；ADR-003 | 待辦 |
+| AI-05 | 日誌 PII / prompt 遮罩 | P0 | Backend TBD | 2026-Q2 TBD | §B.4；§E.3 | 待辦 |
+| AI-06 | nginx CSP / 安全 header（HSTS, X-Frame-Options） | P1 | Frontend TBD | 2026-Q3 TBD | §C.3 | 待辦 |
+| AI-07 | 容器非 root 硬化（frontend / backend Dockerfile） | P1 | DevOps TBD | 2026-Q3 TBD | §D.3 | 待辦 |
+| AI-08 | 鏡像漏洞掃描（Trivy on CI） | P1 | DevOps TBD | 2026-Q3 TBD | §D.3；ADR-004 | 待辦 |
+| AI-09 | MFA 強制 + Supabase 暴力破解強化 | P1 | Security Lead TBD | 2026-Q3 TBD | §C.1 | 待辦 |
+| AI-10 | API Key Rotation 流程 + 文件化 | P1 | Security Lead TBD | 2026-Q3 TBD | §D.2；E9 §Secrets | 待辦 |
+| AI-11 | 滲透測試（黑箱 + 授權測試） | P2 | Security Lead TBD | 2026-Q3 TBD | E1x §7 item 5 | 待辦 |
+| AI-12 | Incident Response Plan | P1 | Security Lead TBD | 2026-Q3 TBD | E1x §7 item 10 | 待辦 |
+| AI-13 | 使用者刪除權 UI + 流程 | P1 | Product + Backend TBD | 2026-Q3 TBD | §E.2 | 待辦 |
+| AI-14 | Supabase RLS 測試覆蓋（跨租戶） | P0 | Backend + QA TBD | 2026-Q2 TBD | STRIDE T4；ADR-001 | 待辦 |
+| AI-15 | Secrets Manager（Vault / AWS SM）遷移 | P2 | DevOps TBD | 2026-Q3 TBD | §D.2；E9 §Secrets | 待辦 |
 
 ### 整體評估
 
@@ -167,27 +202,38 @@ Draft 階段。BaaS-First 架構在認證 / 加密 / RLS 三個層面已有強�
 ## G. 生產準備就緒 (Production Readiness)
 
 ### G.1 可觀測性 (Observability)
-- [ ] **監控儀表板**：無 Grafana / Datadog — TBD by 2026-Q3 TBD
-- [ ] **核心指標 (SLIs)**：Latency / Traffic / Errors / Saturation 未暴露 — TBD by 2026-Q3 TBD
-- [ ] **結構化日誌**：FastAPI 預設 uvicorn access log；JSON 化 + 中央收集 TBD by 2026-Q3 TBD
-- [ ] **全鏈路追蹤**：未導入 OpenTelemetry — TBD by 2026-Q4 TBD
-- [ ] **告警**：未配置 — TBD by 2026-Q3 TBD
+- [ ] **監控儀表板**：無 Grafana / Datadog — TBD — Ops TBD by 2026-Q3 TBD
+- [ ] **核心指標 (SLIs)**：Latency / Traffic / Errors / Saturation 未暴露 — TBD — Backend TBD by 2026-Q3 TBD
+- [ ] **結構化日誌**：FastAPI 預設 uvicorn access log；JSON 化 + 中央收集 TBD — Backend TBD by 2026-Q3 TBD
+- [ ] **全鏈路追蹤**：未導入 OpenTelemetry — TBD — Backend TBD by 2026-Q4 TBD
+- [ ] **告警**：未配置 — TBD — Ops TBD by 2026-Q3 TBD
+- [ ] **LLM 呼叫觀測**：token 使用量 / retry count / P95 latency 指標 — TBD — Backend TBD by 2026-Q3 TBD（ADR-003 Phase 2）
+- [ ] **錯誤追蹤**：Sentry / Rollbar TBD — Backend TBD by 2026-Q3 TBD
 
 ### G.2 可靠性與彈性 (Reliability & Resilience)
-- [x] **健康檢查**：FastAPI `/health` 端點（需確認；若無則 TBD by 2026-Q2 TBD）
-- [ ] **優雅啟停**：uvicorn 預設處理 SIGTERM；應用層 hook TBD by 2026-Q3 TBD
+- [x] **健康檢查**：FastAPI `/health` 端點（需確認；若無則 TBD — Backend TBD by 2026-Q2 TBD）
+- [ ] **優雅啟停**：uvicorn 預設處理 SIGTERM；應用層 shutdown hook TBD — Backend TBD by 2026-Q3 TBD
 - [x] **重試與超時**：LLM 呼叫走 `tenacity` retry（ADR-003 Phase 1）
 - [x] **故障轉移**：Supabase 託管級 failover
-- [x] **備份與恢復**：Supabase 自動；演練 TBD by 2026-Q3 TBD
+- [x] **備份與恢復**：Supabase 自動
+- [ ] **備份恢復演練**：半年一次 DR drill TBD — DBA TBD by 2026-Q3 TBD
+- [ ] **斷路器 (Circuit Breaker)**：Anthropic 呼叫未包裹 — TBD — Backend TBD by 2026-Q4 TBD
+- [x] **Rollback 文件**：見 [`operations/*.md`](operations/) 兩份 runbook
 
 ### G.3 性能與可擴展性 (Performance & Scalability)
-- [ ] **負載測試**：未執行 — TBD by 2026-Q3 TBD
-- [ ] **容量規劃**：依 Anthropic quota；token 預算追蹤 ADR-003 Phase 2 — TBD
+- [ ] **負載測試**：未執行 — TBD — QA Lead TBD by 2026-Q3 TBD
+- [ ] **容量規劃**：依 Anthropic quota；token 預算追蹤 ADR-003 Phase 2 — TBD — Backend TBD by 2026-Q3 TBD
 - [x] **水平擴展**：FastAPI 無狀態；docker-compose replicas 可調
 - [x] **依賴擴展性**：Supabase / Anthropic 為託管 SaaS
+- [ ] **性能基線**：P95 latency / 並發數基準 TBD — QA Lead TBD by 2026-Q3 TBD
+- [ ] **前端性能預算**：bundle size / LCP / CLS TBD — Frontend TBD by 2026-Q3 TBD
 
 ### G.4 可維護性與文檔 (Maintainability & Documentation)
 - [x] **Runbook**：[`operations/TRIZ_Layered_Rollout_Runbook.md`](operations/TRIZ_Layered_Rollout_Runbook.md)、[`operations/runbook_pc_decomposition.md`](operations/runbook_pc_decomposition.md)
-- [ ] **CI/CD**：未建立（ADR-004 不納入 v1.0）— TBD by 2026-Q3 TBD
+- [ ] **CI/CD**：未建立（ADR-004 不納入 v1.0）— TBD — DevOps TBD by 2026-Q3 TBD（見 E9 §CI/CD v1.1 範本）
 - [x] **配置管理**：`.env` 外部掛載，不硬編碼
-- [ ] **功能開關**：部分（如 `VITE_TRIZ_LAYERED_MODE`）— 全面 feature flag 系統 TBD by 2026-Q4 TBD
+- [ ] **功能開關**：部分（如 `VITE_TRIZ_LAYERED_MODE`）— 全面 feature flag 系統 TBD — Backend TBD by 2026-Q4 TBD
+- [x] **ADR 追溯**：ADR-001 ~ ADR-005 已建立
+- [x] **文件體系**：5D 結構 + _MOC.md（見 E9x 文檔維護指南）
+- [ ] **On-call 輪值**：未建立 — TBD — Tech Lead TBD by 2026-Q3 TBD
+- [ ] **事件事後報告 (Postmortem) 模板**：TBD — Tech Lead TBD by 2026-Q3 TBD

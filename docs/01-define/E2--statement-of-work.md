@@ -57,7 +57,7 @@ RD Design Copilot v1.0 — AI 驅動的早期概念設計決策平台
 
 | Agent | 職責 | LLM 呼叫 | 規則引擎 |
 |-------|------|----------|---------|
-| **Analyst Agent** | 問題定義、索克拉底提問、假設萃取 | ✓ | — |
+| **Analyst Agent** | 問題定義、蘇格拉底提問、假設萃取 | ✓ | — |
 | **TRIZ Solver Agent** | TRIZ 三路徑求解、Anti-Anchor | ✓ | ✓ (矩陣查表) |
 | **Evaluator Agent** | MUST 篩選、Pre-CAD 評分、KT 計算 | ✓ (深度分析) | ✓ (規則判定) |
 | **Knowledge Agent** | RAG 知識檢索、Web 搜尋、知識沉澱 | ✓ | — |
@@ -92,7 +92,7 @@ RD Design Copilot v1.0                              狀態     完成日
 │
 ├── WP-2: Phase 1 — Define (定義問題空間)
 │   ├── WP-2.1: 任務定義模組                        ✅ Done   2026-03-11
-│   ├── WP-2.2: 索克拉底七類提問引擎                ✅ Done   2026-03-11
+│   ├── WP-2.2: 蘇格拉底七類提問引擎                ✅ Done   2026-03-11
 │   ├── WP-2.3: 假設萃取 + 矛盾識別                ✅ Done   2026-03-11
 │   ├── WP-2.4: 因果迴路圖 (CLD) + 斷路點          ✅ Done   2026-03-11
 │   └── WP-2.5: Gate 1.1 / 1.2 / Phase Gate 1     ✅ Done   2026-03-11
@@ -120,7 +120,7 @@ RD Design Copilot v1.0                              狀態     完成日
 ├── WP-5: 前端 UI (6+1 頁)
 │   ├── WP-5.0: Dashboard (專案列表 + KPI 卡片)    ✅ Done   2026-03-12
 │   ├── WP-5.1: Brief 頁 (任務定義)                ✅ Done   2026-03-11
-│   ├── WP-5.2: Explore 頁 (索克拉底 + CLD)        ✅ Done   2026-03-11
+│   ├── WP-5.2: Explore 頁 (蘇格拉底 + CLD)        ✅ Done   2026-03-11
 │   ├── WP-5.3: Track 頁 (假設台帳 Kanban)         ✅ Done   2026-03-12
 │   ├── WP-5.4: Create 頁 (TRIZ + SCAMPER + MUST)  ✅ Done   2026-03-11
 │   ├── WP-5.5: Review 頁 (證據矩陣 + 風險)        ✅ Done   2026-03-12
@@ -177,7 +177,7 @@ RD Design Copilot v1.0                              狀態     完成日
 | WBS | 工作包 | 產出物 | 人力 | 工時 | 前置 | 可並行 |
 |-----|--------|--------|------|------|------|--------|
 | 2.1 | 任務定義模組 | `POST/GET /definitions` API + Task Definition prompt + Schema | BE | 2d | 1.2 | ✓ 可與 2.2 並行 |
-| 2.2 | 索克拉底七類提問引擎 | `POST/GET /questions` API + 7-class prompt + answer 收集 | BE | 3d | 1.2, 1.3 | ✓ 可與 2.1 並行 |
+| 2.2 | 蘇格拉底七類提問引擎 | `POST/GET /questions` API + 7-class prompt + answer 收集 | BE | 3d | 1.2, 1.3 | ✓ 可與 2.1 並行 |
 | 2.3 | 假設萃取 + 矛盾識別 | `POST /assumptions/extract` + `POST /contradictions` + identify prompt | BE | 3d | 2.2 | |
 | 2.4 | 因果迴路圖 + 斷路點 | `POST/GET /causal-loops` + breakpoint CRUD + TRIZ 正式化 | BE | 4d | 2.3 | |
 | 2.5 | Gate 1.1 / 1.2 / PG1 | Gate checker (3 個) + Phase 轉換邏輯 | BE | 2d | 2.4 | |
@@ -217,7 +217,7 @@ RD Design Copilot v1.0                              狀態     完成日
 |-----|--------|--------|------|------|------|--------|
 | 5.0 | Dashboard | 專案列表、Phase 進度條、快速統計 | FE | 3d | 1.5 | ✓ 可與後端並行 |
 | 5.1 | Brief 頁 | Mission 輸入、約束表、KPI 列表、AI 任務定義生成 | FE | 4d | 5.0, 2.1 | ✓ |
-| 5.2 | Explore 頁 | 索克拉底 Q&A tabs、矛盾列表、互動式 CLD 圖、斷路點標記 | FE | 6d | 5.0, 2.4 | ✓ 可與 5.1 並行 |
+| 5.2 | Explore 頁 | 蘇格拉底 Q&A tabs、矛盾列表、互動式 CLD 圖、斷路點標記 | FE | 6d | 5.0, 2.4 | ✓ 可與 5.1 並行 |
 | 5.3 | Track 頁 | 假設 Kanban (4 欄拖拉)、Unknown Factors 列表、PDCA 面板 | FE | 5d | 5.0, 3.1 | ✓ 可與 5.2 並行 |
 | 5.4 | Create 頁 ★ | 7 個 Accordion (Anti-Anchor / TRIZ 3-path Tabs / 子系統 / SCAMPER / 方案卡片 / MUST 矩陣 / Pre-CAD 5D 雷達圖) | FE | 10d | 5.0, 3.8 | |
 | 5.5 | Review 頁 | Tabs: 證據矩陣熱力圖 (E0→E4)、風險 P×S 矩陣、最小實驗列表 | FE | 6d | 5.0, 4.2 | ✓ 可與 5.4 並行 |
@@ -275,7 +275,7 @@ Week 1  ─┬─ [BE-S] WP-1.1 骨架 (2d) → WP-1.3 LLM Service (2d)
           │  [BE-M] WP-1.2 資料模型 (3d) → WP-1.4 認證 (2d)
           └─ [FE-S+FE-M] WP-1.5 前端骨架 + Design System (5d)
 
-Week 2  ─┬─ [BE-S] WP-2.2 索克拉底引擎 (3d)  ──┐
+Week 2  ─┬─ [BE-S] WP-2.2 蘇格拉底引擎 (3d)  ──┐
           │  [BE-M] WP-2.1 任務定義 (2d) ────────┤
           └─ [FE-S] WP-5.0 Dashboard (3d)       │ ← 並行
              [FE-M] WP-5.1 Brief 頁 (4d)        │ ← 並行
@@ -353,7 +353,7 @@ WP-1.1 → WP-1.2 → WP-2.2 → WP-2.3 → WP-2.4 → WP-3.3 (TRIZ) → WP-3.4 
 |------|--------|---------|
 | 專案管理 | 4 | `POST/GET /projects`, `GET /:id` |
 | 任務定義 | 3 | `POST/GET /definitions` |
-| 索克拉底問答 | 4 | `POST/GET /questions`, `POST /:qid/answer` |
+| 蘇格拉底問答 | 4 | `POST/GET /questions`, `POST /:qid/answer` |
 | 矛盾管理 | 4 | `POST/GET /contradictions`, `POST /:cid/formalize` |
 | 因果迴路 | 3 | `POST/GET /causal-loops`, breakpoint CRUD |
 | 假設台帳 | 5 | `POST/GET/PUT /assumptions`, `POST /extract`, `POST /:aid/disprove` |
@@ -459,10 +459,10 @@ Day 3 (03-13) ████████████████████  M6: 
 | 編號 | 驗收項目 | 驗收條件 | 驗證方式 |
 |------|---------|---------|---------|
 | AC-01 | 專案建立 | 輸入需求後成功建立專案並生成任務定義表 | 操作驗證 |
-| AC-02 | 索克拉底問答 | 七類提問各≥2 題，共 14-21 題，品質可用 | 人工審查 |
+| AC-02 | 蘇格拉底問答 | 七類提問各≥2 題，共 14-21 題，品質可用 | 人工審查 |
 | AC-03 | 矛盾識別 | 自動識別≥3 條矛盾，正確分類 TC/PC/SF | 人工審查 |
 | AC-04 | CLD 生成 | 因果迴路圖正確表達反饋迴路 + 可標記斷路點 | 操作驗證 |
-| AC-05 | Phase 1 完整 | 任務定義→索克拉底→矛盾→CLD→Phase Gate 1 通過 | E2E 測試 |
+| AC-05 | Phase 1 完整 | 任務定義→蘇格拉底→矛盾→CLD→Phase Gate 1 通過 | E2E 測試 |
 | AC-06 | 假設台帳 PDCA | 假設狀態 Open→Experimenting→Validated/Refuted 正確流轉 | 單元測試 |
 | AC-07 | TRIZ 三路徑 | `POST /triz/solve` 回傳 TC+PC+SF 三路徑結構化結果 | API 測試 |
 | AC-08 | SCAMPER 變形 | 7 動作 × N 子系統正確生成 + new_contradictions 回饋 | API 測試 |
@@ -572,7 +572,7 @@ Day 3 (03-13) ████████████████████  M6: 
 
 | 術語 | 定義 |
 |------|------|
-| Phase 1: Define | 定義問題空間（任務定義 → 索克拉底七類提問 → 矛盾識別 → CLD + 斷路點） |
+| Phase 1: Define | 定義問題空間（任務定義 → 蘇格拉底七類提問 → 矛盾識別 → CLD + 斷路點） |
 | Phase 2: Diverge | 假設與發散（假設台帳 → TRIZ 三路徑 → SCAMPER → 方案集合 → MUST → Pre-CAD） |
 | Phase 3: Converge | 收斂與驗證（證據矩陣 → 風險登錄 → 最小實驗 → WANT → KT 決策 → 知識沉澱） |
 | Gate | 階段檢查點，滿足 checklist 才進入下一階段 (共 8 個) |

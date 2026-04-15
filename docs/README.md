@@ -15,7 +15,7 @@ TR0  TR1       TR2  TR3      TR4  TR5       TR6    TR7        TR8  TR9  TR10
 |------|------|----------|--------|
 | E1   | TR1  | [00-discover/E1--project-brief-and-prd](00-discover/E1--project-brief-and-prd.md) | Approved |
 | E2   | TR2  | [01-define/E2--statement-of-work](01-define/E2--statement-of-work.md) + [01-define/adrs/](01-define/adrs/) | Approved |
-| E3   | TR3  | [01-define/E3--architecture-and-design](01-define/E3--architecture-and-design.md) | Approved |
+| E3   | TR3  | [01-define/E3--architecture-and-design](01-define/E3--architecture-and-design.md) (v2.0 · 2026-04-15 · VibeCoding 05 三部分骨架) | Active |
 | E4   | TR3  | 01-define/diagrams/E4--06_erd (TBD) | Planned |
 | E5   | TR4  | [02-design/E5--api-design-specification](02-design/E5--api-design-specification.md) + [E5x--system-design-overview](02-design/E5x--system-design-overview.md) | Active |
 | E6   | TR5  | [02-design/E6x--schema-codegen-workflow](02-design/E6x--schema-codegen-workflow.md) | Active |

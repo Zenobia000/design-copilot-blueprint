@@ -8,16 +8,37 @@
 | #   | Gate | Document | VibeCoding | Status |
 |-----|------|----------|------------|--------|
 | E2  | TR2  | [E2--statement-of-work](E2--statement-of-work.md) | — | Approved |
-| E3  | TR3  | [E3--architecture-and-design](E3--architecture-and-design.md) | 05 | Approved |
+| E3  | TR3  | [E3--architecture-and-design](E3--architecture-and-design.md) (v2.0, 2026-04-15) | 05 | Active |
 
 ## User-Facing 視角
 
 - [E3x--system-interaction-flow](E3x--system-interaction-flow.md) — 目標狀態系統互動流程（對照 00-discover 現狀痛點，描繪設計後使用者 × 子系統 × State Machine 的 end-to-end 體驗流；3 scenarios：Forward TRIZ / Reverse Anti-Anchor / Pre-CAD 審查）
 
-## E3 Appendices — 架構細節（已整合進 E3 主檔）
+## E3 結構導覽（v2.0 重構後，2026-04-15）
 
-以下 5 份 SA 視角架構附錄已合併進 E3 主檔（對齊 VibeCoding 05「整合性架構與設計文檔」單檔概念），連結指向 E3 內部錨點：
+E3 v2.0 依 VibeCoding Template 05 骨架組織為三部分：
 
+**Part 1 · 架構總覽（§1 – §10，新增 ~600 行）**
+- §1 文件目的與範圍
+- §2 需求摘要（摘自 E1 PRD）
+- §3 高層次架構設計（C4 Context / Container / Component 三層圖）
+- §4 技術選型詳述（彙整 package.json / pyproject.toml / ADR-001..005）
+- §5 數據架構（Supabase migrations + schemas.py；完整 ERD 待 E4）
+- §6 部署與基礎設施（指向 E9 + ADR-001/004）
+- §7 跨領域考量（NFR：效能 / 安全 / 可觀測性 / 可靠性 / 可維護性 / 可測試性 / i18n / a11y）
+- §8 風險與緩解策略
+- §9 架構演進路線圖
+- §10 附錄（術語表、變更記錄）
+
+**Part 2 · 詳細設計（§11，承接 v1.4 全部 AI Agent 內容）**
+- §11.1 Multi-Agent 架構總覽（原 §1）
+- §11.2 逐步自動化分級（原 §2）
+- §11.3 打破路徑依賴的 AI 機制（原 §3 + §5，閱讀順序 11.3.1/.2 → 11.4 → 11.3.3/.4）
+- §11.4 Agent 間協作流程（原 §4）
+- §11.5 技術實作建議（原 §6 + API Endpoints）
+- §11.6 驗證方式（原 §7）
+
+**Part 3 · 附錄（SA 視角架構，5 份保留原樣）**
 - [Appendix A · Forward Subsystem Discovery Architecture](E3--architecture-and-design.md#appendix-a-forward-subsystem-discovery-architecture) — 正向分析 · 子系統定義
 - [Appendix B · Forward TRIZ Solver Architecture](E3--architecture-and-design.md#appendix-b-forward-triz-solver-architecture) — 正向分析 · TRIZ 解矛盾
 - [Appendix C · Reverse Anti-Anchor Architecture](E3--architecture-and-design.md#appendix-c-reverse-anti-anchor-architecture) — 反向探索 · Anti-Anchor

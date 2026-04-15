@@ -111,24 +111,184 @@ RD Design Copilot
 
 ## 6. 頁面詳細規格
 
-| Page | Route | 主要組件 | 對應後端端點 | 參考 Spec |
-|---|---|---|---|---|
-| ProjectList | `/projects` | `projects/*` | `TBD — project CRUD` | — |
-| ProjectDashboard | `/projects/:id` | `dashboard/*` | 多端點聚合 | — |
-| TaskDefinition | `/projects/:id/task-definition` | `task-definition/*`, `brief/*` | `/definitions/*`, `/questions/*` | — |
-| Explore | `/projects/:id/explore` | `explore/*`, `contradiction/*` | `/alternatives/anti-anchor`, `/unknown-factors/*`, `/causal-loops/*` | — |
-| Create | `/projects/:id/create` | `create/*`（Tab ①–④） | `/triz/solve-layered`, `/scamper/*`, `/contradictions/*` | **[create-ux-spec](specs/ux/E5x--create-ux-spec.md)** |
-| PreCadReview | `/projects/:id/pre-cad-review/:rid` | `precad/*`, `review/*` | `/pre-cad-reviews/:rid/ai-analyze`, `/must/*` | [pre-cad template](specs/review-templates/E5x--pre-cad-review-template.md) |
-| DecisionRecord | `/projects/:id/decision-record` | `solution/*`, `evidence/*` | `/actions/*`, `/risks/*` | — |
-| Track | `/projects/:id/track` | `track/*`, `assumption/*` | `/assumptions/*`, `/alternatives/validation-passport` | — |
-| DesignReview | `/projects/:id/design-review` | `review/*` | TBD | — |
-| KnowledgeBase | `/knowledge-base` | — | `/knowledge/*` | — |
-| Auth | `/auth`, `/reset-password` | `auth/*` | Supabase Auth | — |
-| Settings | `/settings` | — | TBD | — |
-| Feynman | `/feynman` | — | — | — |
-| NotFound | `/*` | — | — | — |
+> 每頁以結構化小表呈現 **URL / Purpose / Key Components / State / Related API**。Key Components 優先列出 `src/pages/*.tsx` 內實際 import 的 feature 組件；若頁面只 import UI primitives 或檔案不存在則標 **TBD**。
 
-頁面細節 `TBD — <fe-lead TBD> by 2026-05-15 TBD`（除 Create 已在 UX spec 詳盡）。
+### 6.1 Auth
+
+| 欄位 | 內容 |
+|---|---|
+| **URL** | `/auth`, `/reset-password` |
+| **Purpose** | 使用者登入 / 註冊 / 密碼重置（public route） |
+| **Key Components** | `Button`, `Input`, `Card`（shadcn UI；無 feature 組件） |
+| **State** | Supabase Auth session（`AuthContext`）；表單 state 為 local `useState` |
+| **Related API** | Supabase Auth（`supabase.auth.*`） |
+| **Source** | `src/pages/Auth.tsx`, `src/pages/ResetPassword.tsx` |
+
+### 6.2 ProjectList
+
+| 欄位 | 內容 |
+|---|---|
+| **URL** | `/projects` |
+| **Purpose** | 所有 project 列表、篩選、新建入口 |
+| **Key Components** | `ProjectCard`, `ProjectFilters`, `CreateProjectModal`（`src/components/projects/*`） |
+| **State** | `useProjects()` server state + filter local state |
+| **Related API** | `/projects/*`（`TBD — CRUD spec 正式化`） |
+| **Source** | `src/pages/ProjectList.tsx` |
+
+### 6.3 ProjectDashboard
+
+| 欄位 | 內容 |
+|---|---|
+| **URL** | `/projects/:id` |
+| **Purpose** | 單一專案聚合視圖（階段進度、Gate、KPI、矛盾收斂） |
+| **Key Components** | `PhaseProgressBar`, `QuickStatsGrid`, `GateDonut`, `NavCards`, `ProjectTimeline`, `KpiCards`, `MissionSummaryCard`, `PreCadScoreGauge`, `ContradictionConvergenceCard`, `EvidenceEntryDialog` |
+| **State** | 多個 `useSupabaseQuery`（project / stats / gates）+ `ProjectDataContext` |
+| **Related API** | 聚合多端點：`/projects/:id`, `/stats/*`, `/gates/*` |
+| **Source** | `src/pages/ProjectDashboard.tsx`（import 段 L17–L32） |
+
+### 6.4 TaskDefinition
+
+| 欄位 | 內容 |
+|---|---|
+| **URL** | `/projects/:id/task-definition` |
+| **Purpose** | Brief 凍結 + 5W1H + 素材上傳 → Constraints / KPIs / Contradictions 提取 |
+| **Key Components** | `ConstraintsTable`, `KpiList`, `AITaskDefinitionCard`, `GateChecklist`, `AISuggestionCard`, `EvidenceRefsInline`, `FileUploadZone`, `AIExtractionResults`, `FeasibilityValidation`, `MultiItemInput` |
+| **State** | `useTaskDefinitionForm` (react-hook-form)；`useBrief` server state |
+| **Related API** | `/definitions/*`, `/questions/*`, `/knowledge/ingest-source` |
+| **Source** | `src/pages/TaskDefinition.tsx` |
+
+### 6.5 Explore
+
+| 欄位 | 內容 |
+|---|---|
+| **URL** | `/projects/:id/explore` |
+| **Purpose** | Anti-Anchor Sprint + Socratic 問答 + 矛盾識別 + CLD |
+| **Key Components** | `SocraticTab`, `ContradictionTab`, `CldTab`, `ExploreGates`, `KnowledgeRefsPanel` |
+| **State** | Tab 狀態（URL `?tab=`）；`useExplore` server state |
+| **Related API** | `/alternatives/anti-anchor`, `/unknown-factors/*`, `/causal-loops/*` |
+| **Source** | `src/pages/Explore.tsx` |
+
+### 6.6 Create
+
+| 欄位 | 內容 |
+|---|---|
+| **URL** | `/projects/:id/create?tab={triz\|subsystem\|decision\|tree}` |
+| **Purpose** | TRIZ 分層解 + Subsystem + Decision Center + 三層樹 |
+| **Key Components** | `LayeredSolutionCard`, `MissionContext`, `CreateStepper`, `KnowledgeRefsPanel`, `SubsystemHierarchyView`, `PackageMapPanel`, `SpatialOverlayDialog`, `SpatialOverrideDialog`, `PromoteToLearnedDialog`, `ConvergenceDashboard`, `HumanReviewPanel`, `ArchitectureHaltOverlay`, `MultiSolutionAdoptionPanel`, `ConvergenceGraph`（其餘見 UX spec） |
+| **State** | 提議 `useCreateStore` (Zustand) 管 tab/drill-down；`useLayeredTrizSolve`, `useSubsystemSuggestion` server state |
+| **Related API** | `/triz/solve-layered`, `/scamper/*`, `/contradictions/*`, `/subsystems/*` |
+| **參考 Spec** | **[create-ux-spec](specs/ux/E5x--create-ux-spec.md)**（完整 Tab ①–④） |
+| **Source** | `src/pages/Create.tsx` |
+
+### 6.7 PreCadReview
+
+| 欄位 | 內容 |
+|---|---|
+| **URL** | `/projects/:id/pre-cad-review/:rid` |
+| **Purpose** | Pre-CAD Gate 六維評分 + MUST 判定 + 簽核 |
+| **Key Components** | `SpatialTraceHover`（實作中）；TBD `MustChecklist`, `QualitativeScoreTable`, `CitationDrawer` — `TBD — <fe-lead TBD> by 2026-05-15 TBD`。目前主要使用 `Accordion`, `RadioGroup`, `Progress`, `Dialog` 組件 |
+| **State** | `usePreCadReview` server state；local form state |
+| **Related API** | `/pre-cad-reviews/:rid/ai-analyze`, `/pre-cad-reviews/:rid/sign`, `/must/*` |
+| **參考 Spec** | [pre-cad template](specs/review-templates/E5x--pre-cad-review-template.md), [`evaluator` module](specs/modules/evaluator.md) |
+| **Source** | `src/pages/PreCadReview.tsx` |
+
+### 6.8 DecisionRecord
+
+| 欄位 | 內容 |
+|---|---|
+| **URL** | `/projects/:id/decision-record` |
+| **Purpose** | KT 決策記錄 + Evidence Matrix + Action/Risk 關聯 |
+| **Key Components** | `KnowledgeRefsPanel`；TBD `KtDecisionTable`, `EvidenceMatrixTable`, `ActionRiskList` — `TBD — <fe-lead TBD> by 2026-05-15 TBD`。目前使用 `Table`, `Accordion`, `Dialog` |
+| **State** | `useDecisionRecord` server state |
+| **Related API** | `/actions/*`, `/risks/*`, `/evidence/*` |
+| **Source** | `src/pages/DecisionRecord.tsx` |
+
+### 6.9 Track
+
+| 欄位 | 內容 |
+|---|---|
+| **URL** | `/projects/:id/track` |
+| **Purpose** | 假設台帳 / 實驗追蹤 / Unknown Factors / Validation Passport |
+| **Key Components** | `KanbanBoard`, `UnknownFactors`, `TrackGate`, `KnowledgeRefsPanel` |
+| **State** | `useAssumptions`, `useTrack` server state |
+| **Related API** | `/assumptions/*`, `/alternatives/validation-passport`, `/unknown-factors/*` |
+| **Source** | `src/pages/Track.tsx` |
+
+### 6.10 DesignReview
+
+| 欄位 | 內容 |
+|---|---|
+| **URL** | `/projects/:id/design-review` |
+| **Purpose** | CAD Gate 後的設計審查（黑帽質疑、Evidence 複核） |
+| **Key Components** | `KnowledgeRefsPanel`, `AttachmentsPanel`；TBD `BlackHatPanel` — `TBD — <fe-lead TBD> by 2026-06-15 TBD` |
+| **State** | `useDesignReview` server state |
+| **Related API** | TBD — review router 正式化（by 2026-06） |
+| **Source** | `src/pages/DesignReview.tsx` |
+
+### 6.11 CadInProgress
+
+| 欄位 | 內容 |
+|---|---|
+| **URL** | `/projects/:id/cad-in-progress` |
+| **Purpose** | CAD 繪製階段佔位頁（顯示候選 alternatives 進度） |
+| **Key Components** | 僅 `Button`, `Card`, `Progress`, `Badge`, `HelpTooltip`（無 feature 組件） |
+| **State** | `useAlternatives`, `useUpdateAlternative` |
+| **Related API** | `/alternatives/*` |
+| **Source** | `src/pages/CadInProgress.tsx` |
+
+### 6.12 KnowledgeBase
+
+| 欄位 | 內容 |
+|---|---|
+| **URL** | `/knowledge-base` |
+| **Purpose** | 跨專案知識庫搜尋 / citation 瀏覽 |
+| **Key Components** | 僅 UI primitives (`Button`, `Card`, `Badge`, `Input`, `Skeleton`)；TBD `KbSearchBar`, `CitationList` — `TBD — <fe-lead TBD> by 2026-06 TBD` |
+| **State** | `useKnowledge` search state |
+| **Related API** | `/knowledge/search`, `/knowledge/*` |
+| **參考 Spec** | [`knowledge` module](specs/modules/knowledge.md) |
+| **Source** | `src/pages/KnowledgeBase.tsx` |
+
+### 6.13 ConstraintLabelDictionary
+
+| 欄位 | 內容 |
+|---|---|
+| **URL** | `/constraint-label-dictionary` |
+| **Purpose** | 約束標籤（hard/soft、領域）字典管理 |
+| **Key Components** | UI primitives only (`Select`, `Badge`, `Card`, `Skeleton`) |
+| **State** | local filter state + `useSupabaseQuery` |
+| **Related API** | `/constraint-labels/*` (TBD) |
+| **Source** | `src/pages/ConstraintLabelDictionary.tsx` |
+
+### 6.14 Feynman
+
+| 欄位 | 內容 |
+|---|---|
+| **URL** | `/feynman` |
+| **Purpose** | 知識沉澱 / 內化教學介面（將決策 explainer 化） |
+| **Key Components** | `KnowledgeRefsPanel`, `AiButton`, `HelpTooltip`, `SectionIntro` |
+| **State** | local content state |
+| **Related API** | TBD — Knowledge writeback 端點 by 2026-06 |
+| **Source** | `src/pages/Feynman.tsx` |
+
+### 6.15 Settings
+
+| 欄位 | 內容 |
+|---|---|
+| **URL** | `/settings` |
+| **Purpose** | 個人設定（主題、偏好、帳號） |
+| **Key Components** | `ThemeProvider` consumer；`Card`, `Input`, `Label`, `Separator`（無 feature 組件） |
+| **State** | `useTheme`（Context） |
+| **Related API** | Supabase user profile |
+| **Source** | `src/pages/Settings.tsx` |
+
+### 6.16 DevSeed / NotFound
+
+| Page | URL | Purpose | Key Components | State | Related API |
+|---|---|---|---|---|---|
+| **DevSeed** | `/dev-seed` | Dev-only 資料種入工具 | `Button`, `Card`（+ seed script hooks） | local | `/seed/*` (dev) |
+| **NotFound** | `/*` | 404 fallback | 靜態頁 | — | — |
+
+> Wireframe / 完整互動細節：除 Create 已在 [`specs/ux/E5x--create-ux-spec.md`](specs/ux/E5x--create-ux-spec.md) 定案外，其餘頁面 `TBD — <fe-lead TBD> by 2026-05-15 TBD`。
 
 ## 7. 組件連結與導航系統
 

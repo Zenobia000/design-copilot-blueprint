@@ -60,6 +60,121 @@
 - `components/ui/` 為葉節點，不可 import feature 或 hook。
 - `pages/` 不直接呼叫 API；必須透過 hook。
 
+---
+
+### 2.1 各層實際代碼範例
+
+> 每段代碼取自 `src/` 真實檔案；若該層尚未建立對應實作，以 **TBD** 標註 target + 日期。對應模板：`12_frontend_architecture_specification.md`。
+
+#### (a) 感知層 (Pages) — `src/pages/ProjectDashboard.tsx`
+
+```tsx
+// 路由層只組合 feature 組件 + 讀 hooks；不寫資料邏輯
+import { PhaseProgressBar } from "@/components/dashboard/PhaseProgressBar";
+import { GateDonut } from "@/components/dashboard/GateDonut";
+import { NavCards } from "@/components/dashboard/NavCards";
+import { PreCadScoreGauge } from "@/components/dashboard/PreCadScoreGauge";
+import { ContradictionConvergenceCard } from "@/components/dashboard/ContradictionConvergenceCard";
+// ... 高階 layout 由頁面組裝
+```
+
+Source: `src/pages/ProjectDashboard.tsx`（import 段 L17–L32）
+
+#### (b) 互動層 (Features / Forms) — `src/components/task-definition/MultiItemInput.tsx` 類型
+
+```tsx
+// react-hook-form + zod 範例：TaskDefinition 頁的輸入組件
+// 所有 form state 以 react-hook-form 管理，submit handler 呼叫 hook（不直接 fetch）
+const onSubmit = form.handleSubmit(async (values) => {
+  await extractConstraints.mutateAsync(values); // ← 互動層只呼叫 mutation
+});
+```
+
+Source: `src/components/task-definition/` + `src/hooks/api/useBrief.ts`（詳見 hook 內 `useSupabaseMutation`）
+
+#### (c) 狀態層 (Client state — Zustand) — **提議劃分**
+
+目前專案 client UI state 以 React `useState` + Context 為主 (`src/contexts/ArtifactContext.tsx`, `ProjectDataContext.tsx`)，**尚未引入 Zustand**。
+
+提議（P0 實施）：
+
+```ts
+// TBD — src/stores/createStore.ts by 2026-05-31 TBD
+import { create } from "zustand";
+
+interface CreateStoreState {
+  activeTab: "triz" | "subsystem" | "decision" | "tree";
+  drillDownLayer: 1 | 2 | 3;
+  selectedContradictionId: string | null;
+  setTab: (t: CreateStoreState["activeTab"]) => void;
+  setLayer: (l: CreateStoreState["drillDownLayer"]) => void;
+}
+
+export const useCreateStore = create<CreateStoreState>((set) => ({
+  activeTab: "triz",
+  drillDownLayer: 1,
+  selectedContradictionId: null,
+  setTab: (t) => set({ activeTab: t }),
+  setLayer: (l) => set({ drillDownLayer: l }),
+}));
+```
+
+**建議 store 劃分（per-feature）**：
+| Store | 負責狀態 | 取代現有 |
+|---|---|---|
+| `useCreateStore` | Create 頁 Tab / drill-down / 選中 contradiction | `Create.tsx` 內散落 useState |
+| `useExploreStore` | Explore Tab（Socratic/Contradiction/CLD）切換 | 同上 |
+| `useReviewStore` | Pre-CAD / Design Review gate dialog 狀態 | 同上 |
+| `useProjectStore` | 當前 project scope + 篩選 | `ProjectDataContext` 精簡 |
+
+Source: `TBD — target: src/stores/*.ts by <fe-lead TBD> 2026-05-31 TBD`
+現況: `src/contexts/ArtifactContext.tsx`, `src/contexts/ProjectDataContext.tsx`
+
+#### (d) 通訊層 (API adapter) — `src/hooks/api/useSupabaseQuery.ts`
+
+```ts
+// Thin wrapper over React Query + Supabase；所有 feature hook 共用
+export function useSupabaseMutation<TData, TVariables>(options) {
+  const queryClient = useQueryClient();
+  return useMutation<TData, Error, TVariables>({
+    mutationFn: async (variables) => {
+      // insert / update / delete / upsert 統一入口
+      // 錯誤統一 throw，上層由 ErrorBoundary + toast 處理
+    },
+    onError: (error) => {
+      console.error(`[useSupabaseMutation] ${table}.${type} failed:`, error);
+      toast.error(errorMessage ?? `Operation failed: ${error.message}`);
+    },
+  });
+}
+```
+
+Source: `src/hooks/api/useSupabaseQuery.ts`（L204–L315）
+
+> **Backend API (FastAPI) 路徑**：透過 Vite proxy `/api/v1/*` → `http://localhost:8000`；非 Supabase 的自訂端點 wrapper 位於 `src/hooks/api/useCreate.ts` / `useExplore.ts` 等 per-feature hook。
+
+#### (e) 基礎設施層 (Vite / Build) — `vite.config.ts`
+
+```ts
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  const apiBaseUrl = env.VITE_API_BASE_URL || "http://localhost:8000";
+  return {
+    server: {
+      port: 5173,
+      strictPort: true,
+      proxy: {
+        "/api/v1": { target: proxyTarget, changeOrigin: true },
+      },
+    },
+    plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+    resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
+  };
+});
+```
+
+Source: `vite.config.ts`（完整檔案 L1–L39）
+
 ## 第三部分：前端設計系統
 
 - **UI Kit**：shadcn/ui（手動安裝組件至 `src/components/ui/`，便於客製）。

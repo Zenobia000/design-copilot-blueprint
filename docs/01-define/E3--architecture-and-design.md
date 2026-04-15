@@ -1,21 +1,636 @@
-# AI Agent 架構設計：RD Design Copilot E2E 自動化
+---
+doc_id: E3
+title: RD Design Copilot — Architecture and Design
+version: v2.0
+last_updated: 2026-04-15
+status: Active
+template: VibeCoding 05 (Architecture & Design)
+gate: TR3
+authors: [ARCH, TL]
+supersedes: E3 v1.4 (2026-03-26)
+---
 
-> **版本**：v1.4 | **日期**：2026-03-26
-> **目的**：從 AI Agent 角度重新梳理 E2E 流程，定義自動化等級與多代理協作機制，重點解決 RD 路徑依賴問題。
-> **對齊依據**：`RD_Design_Copilot_整合流程.md` v1.6 + `RD_Design_Copilot_State_Machine.md` v1.6
-> **v1.4 更新**：Phase B 收斂掃描從 TRIZ step 移至 Decision Hub（RD 選定方案後手動觸發）；SCAMPER 改為純創意工具（不再回饋收斂掃描）；Phase A 新增語意去重（is_confirmatory 標記）；子系統拆解改為三層階層（System→Module→Component）；假設提取新增可證偽性篩選（evidence_level E0-E4）。
-> **v1.3 更新**：收斂掃描拆為 Phase A（矛盾空間健康度，Step 2 起）/Phase B（方案交叉檢查，Step 5 後自動觸發）；Analyst Agent 新增 socratic follow-up（回答深度分析 + 追問生成）、brief-impact（Brief 變更影響評估）、first-principles Anti-Anchor（第一性原理 prompt）；Evaluator Agent 新增 Validation Passport 生成；Anti-Anchor 概念可晉升為 Step 5 候選方案（`AlternativeSource` 新增 `'anti_anchor'`）；Step 5d 整合 TRIZ + SCAMPER + Anti-Anchor 候選，每個方案自帶 Validation Passport；新增 3 個 API endpoints。
-> **v1.2 更新**：Knowledge Agent 新增 Source Ingestion 能力（多模態素材解讀）；Analyst Agent 新增 Contradiction Convergence Graph 能力（矛盾收斂圖：掃描 + 分級 Fatal/Major/Minor + 追蹤完全收斂）；TRIZ Solver Agent 輸出新增受影響模組清單與潛在二次矛盾；序列圖更新 Step 1 素材上傳流程和 Step 5a 矛盾收斂迴圈（不設次數上限，目標完全收斂）。
+# E3 — Architecture and Design
+
+> **版本**：v2.0（重構後對齊 VibeCoding Template 05 三部分/十章節骨架） | **最後更新**：2026-04-15 | **狀態**：Active
+> **重構說明**：v2.0 保留 v1.4 全部 AI Agent 敘事內容（現納入「第 2 部分 · 詳細設計 §11」），新增第 1 部分「架構總覽」(§1-§10) 補齊 C4 圖、技術選型、數據架構、部署、NFR、風險、路線圖等標準章節，並保留 Appendix A-E 原樣作為第 3 部分。
+> **v1.4 / v1.3 / v1.2 歷史更新摘要**：見 §11 首段記錄。
+
+## 文檔導覽
+
+本文件按 VibeCoding Template 05 「整合性架構與設計文檔」骨架組織成三部分：
+
+| 部分 | 範圍 | 對應章節 |
+|------|------|---------|
+| **Part 1 · 架構總覽** | 需求摘要、C4 高層架構、技術選型、數據、部署、NFR、風險、路線圖 | §1 – §10 |
+| **Part 2 · 詳細設計** | AI Agent 協作架構（本產品核心，多代理 + 狀態機 + Anti-Anchor 機制） | §11 |
+| **Part 3 · 附錄** | 5 份 SA 視角架構說明書（Forward Subsystem / Forward TRIZ / Reverse Anti-Anchor / State Machine / TRIZ→SCAMPER Flow） | Appendix A – E |
 
 ---
 
-## §1 Multi-Agent 架構總覽
+# Part 1 · 架構總覽
+
+## §1 文件目的與範圍
+
+### 1.1 文件目的
+
+本文件為 RD Design Copilot v1.0 的整合性架構與設計文檔，負責回答「系統由哪些元件構成？彼此如何互動？為何如此選型？」三個問題。文件同時服務下列讀者：
+
+| 讀者 | 關心的章節 |
+|------|----------|
+| 新進開發者 | §3（C4 圖）、§4（技術棧）、§11（Agent 詳細設計） |
+| Tech Lead / ARCH | §4（選型理由）、§7（NFR）、§8（風險）、§9（路線圖）、Appendix A-E |
+| Product / PM | §2（需求摘要）、§9（路線圖） |
+| SRE / DevOps | §6（部署）、§7（NFR：可觀測性/安全） |
+| QA | §7（NFR）、§11.6（驗證場景）、§3（接口邊界） |
+
+### 1.2 範圍
+
+**In Scope**
+
+- RD Design Copilot 產品的軟體架構（前端 + 後端 + BaaS + LLM 服務）
+- Multi-Agent 編排、狀態機、TRIZ / SCAMPER / Anti-Anchor 三條分析路徑
+- 部署拓撲（Docker Compose + Supabase SaaS + Anthropic API）
+- 關鍵非功能需求與對應緩解設計
+
+**Out of Scope**
+
+- 詳細 API Spec（見 `docs/02-design/E5--api-design-specification.md`）
+- 完整 ERD（見 E4 ERD — TBD owner TBD by 2026-Q2 TBD，暫以 Supabase migrations 001-010 + `backend/app/models/schemas.py` 為事實來源）
+- Module-level 程式結構（見 `docs/02-design/specs/modules/`）
+- 使用者介面細節（見 `docs/02-design/E5x--frontend-architecture.md`）
+
+### 1.3 相關文件
+
+| 類別 | 文件 |
+|------|------|
+| 上游輸入 | `docs/00-discover/E1--project-brief-and-prd.md`（需求來源）、`docs/00-discover/E1x--assumption-risk-register.md` |
+| 決策紀錄 | `docs/01-define/adrs/ADR-001..005` |
+| 下游展開 | `docs/02-design/E5--api-design-specification.md`、`docs/02-design/E5x--frontend-architecture.md` |
+| 交付文件 | `docs/04-deliver/E9--deployment-and-operations-guide.md`、`docs/04-deliver/E8--security-and-readiness-checklists.md` |
+| 計劃文件 | `docs/01-define/E3x--wbs-development-plan.md`、`E3x--wbs-development-plan-addendum.md` |
+
+---
+
+## §2 需求摘要 (Requirements Summary)
+
+> 需求來源：`docs/00-discover/E1--project-brief-and-prd.md` v3.0（2026-04-13）。以下為架構相關摘要，完整內容以 E1 為準。
+
+### 2.1 Customer Promise
+
+> RD Design Copilot 讓 RD 工程師在概念設計階段，用結構化的 AI 輔助發散與收斂流程，在更短的時間內探索更多可能性、更早暴露風險，使每一個設計決策都有可追溯的證據鏈。
+
+### 2.2 主要用戶與場景
+
+| 用戶 | 架構相關需求 |
+|------|------------|
+| RD 工程師 | 結構化輸入、AI 預填、發散/收斂工作流、可追溯決策 |
+| RD 主管 | Gate Review 彙整、Evidence Matrix、KT 決策記錄 |
+| PM | 專案儀表板、進度追蹤、Brief 變更影響評估 |
+| 品質工程師 | Risk Register、FMEA 比對 |
+| 高階主管 | 一頁式摘要、決策追溯 |
+
+### 2.3 核心功能對應架構能力
+
+| PRD Goal | 對應架構能力 | 主要 Agent / 元件 |
+|---------|-------------|-----------------|
+| G1 擴大設計可能性空間 | Anti-Anchor Sprint + TRIZ + SCAMPER 三路發散 | Analyst + TRIZ Solver + Knowledge |
+| G2 未知可見可追蹤 | 假設台帳 + Validation Passport + Evidence Matrix | Analyst + Evaluator |
+| G3 前置風險驗證 | 矛盾收斂圖 Phase A/B + 最小實驗設計 | Analyst + Evaluator |
+| G4 決策可審查可複用 | KT Decision Analysis + 6 類資產知識回寫 | Evaluator + Knowledge |
+| G5 提升溝通效率 | Gate 自動化 + 一頁式報告 | Orchestrator + Evaluator |
+| G6 用戶願意使用 | 漸進式負擔 + AI 預填 | Frontend UX |
+| G7 證據缺口可見 | Evidence Matrix + 北極星證據追蹤 | Evaluator |
+
+### 2.4 產品原則（架構守欄）
+
+源自 PRD §5：**AI 建議，人決策；證據先行；結構化但不僵化；打破錨定；透明可解釋；漸進式負擔；知識可沉澱**。這七條原則直接約束後續所有 ADR 與設計決策（見 §8 風險與 §11.3 Anti-Anchor 機制）。
+
+### 2.5 Scope Boundaries
+
+| This Product IS | This Product IS NOT |
+|----------------|---------------------|
+| 概念設計 AI 輔助工具 | 詳細設計工具（CAD/CAE/CAM） |
+| 結構化發散收斂引擎 | 自動設計系統（不產生最終圖面） |
+| 證據驅動 Gate 決策支援 | 專案管理工具（Jira/MS Project） |
+| 設計知識沉澱平台 | 通用 AI 聊天機器人 |
+| — | PLM / PDM 系統 |
+
+---
+
+## §3 高層次架構設計 (High-Level Architectural Design)
+
+採用 C4 Model 三層視圖（Context / Container / Component）。更細節的 Component 視圖見 Appendix A（子系統）、Appendix B（TRIZ）、Appendix C（Anti-Anchor）。
+
+### 3.1 Context Diagram (C4 Level 1)
+
+```mermaid
+C4Context
+    title System Context — RD Design Copilot v1.0
+
+    Person(rd, "RD Engineer", "概念設計主要使用者")
+    Person(lead, "Tech Lead / PM", "審查、決策、進度追蹤")
+    Person(quality, "Quality Engineer", "風險評估、FMEA")
+
+    System(copilot, "RD Design Copilot", "AI 輔助概念設計系統：結構化發散、收斂與證據鏈")
+
+    System_Ext(anthropic, "Anthropic API", "LLM 服務 (Claude sonnet/haiku)")
+    System_Ext(tavily, "Tavily Search API", "Web 專利/文獻搜尋（Evidence Retrieval）")
+    System_Ext(supabase, "Supabase Cloud", "PostgreSQL + Auth + Storage + RLS")
+    System_Ext(enterprise_kb, "Enterprise Knowledge Base", "FMEA / 8D / 決策紀錄 / 規範 (v1.1+)")
+
+    Rel(rd, copilot, "提交 Brief、參與蘇格拉底問答、審核方案")
+    Rel(lead, copilot, "Gate 審查、決策簽核")
+    Rel(quality, copilot, "風險評估、Evidence Matrix")
+
+    Rel(copilot, anthropic, "LLM 推論", "HTTPS/JSON")
+    Rel(copilot, tavily, "專利/文獻搜尋", "HTTPS/JSON")
+    Rel(copilot, supabase, "資料存取、Auth、檔案存放", "HTTPS + JS Client / supabase-py")
+    Rel(copilot, enterprise_kb, "RAG 檢索（v1.1+ 預留）", "TBD — Integration Owner TBD by 2026-Q3 TBD")
+```
+
+### 3.2 Container Diagram (C4 Level 2)
+
+```mermaid
+C4Container
+    title Container View — RD Design Copilot
+
+    Person(rd, "RD Engineer")
+
+    System_Boundary(copilot, "RD Design Copilot") {
+        Container(web, "Web Frontend", "React 18 + Vite + TypeScript + shadcn/ui + TanStack Query", "19 頁面、Supabase JS Client 直連 CRUD、呼叫 AI 端點")
+        Container(api, "AI Orchestration API", "FastAPI (Python 3.10+) + LangGraph", "16 AI 端點、Multi-Agent 編排、Prompt 模板管理、LLM service hardening")
+        ContainerDb(pg, "Supabase PostgreSQL", "PostgreSQL 15 + RLS + DB Functions", "29 張表、狀態機觸發器、Gate 檢查 RPC")
+        Container(auth, "Supabase Auth", "Supabase", "Email/Password + OAuth")
+        Container(storage, "Supabase Storage", "Supabase", "Brief 素材上傳（PDF/圖片/Excel）")
+    }
+
+    System_Ext(anthropic, "Anthropic API", "Claude sonnet-4.6 / haiku-4.5")
+    System_Ext(tavily, "Tavily API", "Web 搜尋")
+
+    Rel(rd, web, "使用", "HTTPS")
+    Rel(web, auth, "登入/Session", "HTTPS")
+    Rel(web, pg, "CRUD (anon key + RLS)", "HTTPS")
+    Rel(web, storage, "上傳素材", "HTTPS")
+    Rel(web, api, "觸發 AI 分析", "HTTPS/JSON")
+
+    Rel(api, pg, "讀寫（service-role key）", "HTTPS")
+    Rel(api, anthropic, "LLM 推論", "HTTPS")
+    Rel(api, tavily, "搜尋", "HTTPS")
+```
+
+### 3.3 Component Diagram (C4 Level 3 — API Container 內部)
+
+```mermaid
+C4Component
+    title Component View — AI Orchestration API (FastAPI Container)
+
+    Container_Boundary(api, "FastAPI Container") {
+        Component(routers, "Routers (10)", "FastAPI APIRouter", "brief / socratic / cld / anti_anchor / triz / scamper / risk / action / convergence / must — 共 16 AI 端點")
+        Component(orch, "Orchestrator / LangGraph Flow", "LangGraph StateGraph", "Step 流轉、Gate 判定、Agent 調度、雙層狀態機對接")
+
+        Component(analyst, "Analyst Agent", "LangChain + Claude sonnet", "需求解構、蘇格拉底、矛盾收斂圖、假設質疑、Anti-Anchor 第一性原理")
+        Component(triz, "TRIZ Solver Agent", "LangChain + Claude sonnet + Rule Engine", "矛盾矩陣查表、原理實體化、SCAMPER、子系統拆解")
+        Component(eval, "Evaluator Agent", "LangChain + Claude sonnet", "MUST 快篩、KT 評分、Validation Passport、Gate 判定")
+        Component(know, "Knowledge Agent", "LangChain + Claude haiku", "Evidence Retrieval、Web 搜尋、多模態素材解讀、知識回寫")
+
+        Component(llm_svc, "LLMService", "anthropic-sdk + tenacity + Pydantic", "Retry、JSON 容錯、Pydantic 驗證、Token logging (Phase 2)")
+        Component(triz_kb, "TRIZ Knowledge Base", "Markdown + in-memory", "39 參數 / 矩陣 / 40 原理 / 分離原理 / 76 標準解")
+        Component(evidence_svc, "Evidence Retrieval Service", "httpx async + Tavily", "ISO/EN/IEC 標準 + 專利 + 論文搜尋")
+    }
+
+    ContainerDb(pg, "Supabase PostgreSQL")
+    System_Ext(anthropic, "Anthropic API")
+    System_Ext(tavily, "Tavily API")
+
+    Rel(routers, orch, "dispatch")
+    Rel(orch, analyst, "invoke")
+    Rel(orch, triz, "invoke")
+    Rel(orch, eval, "invoke")
+    Rel(orch, know, "invoke")
+
+    Rel(analyst, llm_svc, "call_llm_json")
+    Rel(triz, llm_svc, "call_llm_json")
+    Rel(triz, triz_kb, "lookup")
+    Rel(eval, llm_svc, "call_llm_json")
+    Rel(know, llm_svc, "call_llm_json")
+    Rel(know, evidence_svc, "search")
+
+    Rel(llm_svc, anthropic, "messages.create")
+    Rel(evidence_svc, tavily, "search")
+
+    Rel(orch, pg, "artifact state R/W")
+```
+
+> **深入閱讀**：三條分析路徑（正向子系統 / 正向 TRIZ / 反向 Anti-Anchor）的 Component 細節見 Appendix A / B / C；狀態機見 Appendix D；TRIZ→SCAMPER 流程見 Appendix E。
+
+### 3.4 關鍵架構風格與決策
+
+| 風格 | 說明 | 依據 |
+|------|------|------|
+| **BaaS-First** | 前端直連 Supabase 做 CRUD，後端只做 AI 編排 | ADR-001 |
+| **Server-side guardrails via DB Functions** | 狀態機轉換 + Gate 檢查由 PostgreSQL 觸發器/RPC 強制 | ADR-002 |
+| **Multi-Agent + LangGraph** | Analyst / TRIZ / Evaluator / Knowledge 四角色 + 狀態圖編排 | §11.1 + §11.5 |
+| **Evidence-first outputs** | 所有 AI 輸出附 `EvidenceReference`（KB-/WEB-/DOC-/REASONING-） | ADR-005 + schemas.py §EvidenceReference |
+| **Prompt-as-code（Phase 2 轉 prompt-as-data）** | 目前 Prompt 模板在 Python 模組，Phase 2 遷至 `prompts/templates/*.md` | ADR-003 |
+
+---
+
+## §4 技術選型詳述 (Technology Stack Details)
+
+### 4.1 技術棧總覽
+
+| 層級 | 技術 | 版本 | 選型理由 / 來源 |
+|------|------|------|----------------|
+| **Frontend Framework** | React + Vite + TypeScript | React 18.3 / Vite 5.4 / TS 5.8 | SPA、快速 HMR、生態成熟；`package.json` |
+| **UI Component Lib** | shadcn/ui + Radix UI + Tailwind | Radix 1.x-2.x / Tailwind 3.4 | Headless、可組合、與 design tokens 整合 |
+| **Frontend State** | TanStack Query v5 + React Hook Form + Zod | 5.83 / 7.61 / 3.25 | 伺服器狀態快取、表單驗證 |
+| **Frontend Graph** | @xyflow/react + @dagrejs/dagre + Recharts | 12.10 / 2.0 / 2.15 | 收斂圖、狀態機視覺化、KPI 圖表 |
+| **Backend Framework** | FastAPI + Uvicorn | FastAPI 0.115+ / uvicorn 0.34+ | async、自動 OpenAPI、Pydantic 整合；`backend/pyproject.toml` |
+| **Backend Runtime** | Python | 3.10+ | LangChain 生態、pydantic 2.10+ |
+| **LLM Orchestration** | LangGraph + LangChain Core + LangChain Anthropic | 0.3+ / 0.3+ / 0.3+ | StateGraph 原生支援、Human-in-the-loop、條件分支；ADR-003 + §11.5 |
+| **LLM Provider** | Anthropic Claude | sonnet-4.6（主）+ haiku-4.5（輕量） | 長上下文、JSON mode、tool use |
+| **LLM Resilience** | tenacity（計畫中） | >=9.0 | 指數退避重試；ADR-003 Phase 1 |
+| **Schema Validation** | Pydantic | >=2.10 | LLM 輸出結構化、型別安全；ADR-003 |
+| **BaaS / DB** | Supabase (PostgreSQL) | 2.97（JS）/ 2.12+（py） | ADR-001：Auth + RLS + Realtime + PostgreSQL Day-1 |
+| **DB Migrations** | Supabase CLI SQL | — | `supabase/migrations/000-010` |
+| **Web Search** | Tavily | >=0.5（optional）| ADR-005：ISO/EN/IEC 標準引用；`backend/app/services/web_search.py` |
+| **Frontend Testing** | Vitest + Testing Library + jsdom | 3.2 / 16.0 / 20 | ADR-004 |
+| **Backend Testing** | pytest + pytest-asyncio | 8+ / 0.25+ | ADR-004 |
+| **E2E Testing** | Playwright（計畫中） | TBD — QA Owner TBD by 2026-W17 TBD | ADR-004 |
+| **Packaging** | Docker + docker-compose + nginx | — | ADR-004；`Dockerfile`、`docker-compose.yml`、`nginx.conf` |
+| **Auth** | Supabase Auth（Email/OAuth） | — | ADR-001 |
+| **Lint / Format** | ESLint 9 + TypeScript ESLint / Ruff 0.9 | — | `eslint.config.js` / `pyproject.toml [tool.ruff]` |
+
+### 4.2 選型關聯 ADR 交叉表
+
+| ADR | 主要技術決策 | 影響範圍 |
+|-----|------------|---------|
+| **ADR-001** | BaaS-First — Supabase 取代 SQLAlchemy ORM | 消除 ~35 CRUD 端點、RLS 取代自訂權限、PostgreSQL Day-1 |
+| **ADR-002** | Server-side 業務邏輯改用 Supabase DB Functions + Triggers | 狀態機、8-Gate RPC、unknown_factors 持久化 |
+| **ADR-003** | LLM 服務層強化 — Retry / Pydantic 驗證 / Prompt 外部化 | tenacity、llm_usage_logs、prompts/templates/*.md |
+| **ADR-004** | 務實測試策略 — 16 AI 端點全覆蓋、Docker 部署、不追 80% | pytest、Vitest、Playwright smoke、docker-compose |
+| **ADR-005** | 範圍擴充 — Evidence Retrieval + Multi-Solution + Configurable MUST | Tavily API、concept_routes/compatibility_pairs 2 張新表、MustCriterionConfig |
+
+### 4.3 關鍵相依與替換成本
+
+| 相依 | 替換成本 | 緩解 |
+|------|---------|------|
+| Anthropic API | 高（Prompt 與模型行為耦合） | ADR-003 Phase 3 智慧模型路由 + 風險 BR-05：抽象 LLM 介面層 |
+| Supabase JS SDK | 極高（前端直接 import） | 短期不動；v1.1 評估 supabase-compatible 替代（e.g. PostgREST） |
+| Tavily API | 低（僅 Knowledge Agent 使用） | 可切換 SerpAPI / Google Custom Search |
+| LangGraph | 中 | 若需替換，Orchestrator 介面保留 `dispatch(step, state)` 契約 |
+
+---
+
+## §5 數據架構 (Data Architecture)
+
+> **E4 ERD 狀態**：完整 ERD 圖尚未產出 — **TBD — E4 ERD Owner TBD by 2026-Q2 TBD**。本節以 Supabase migrations（`supabase/migrations/000-010`）+ `backend/app/models/schemas.py` Pydantic 類別作為事實來源（source of truth）。
+
+### 5.1 資料儲存分層
+
+| 層 | 技術 | 用途 | 存取方式 |
+|----|------|------|---------|
+| 結構化資料 | Supabase PostgreSQL（29 表） | 專案、Artifact、Gate 結果、決策紀錄 | 前端：Supabase JS + RLS / 後端：supabase-py service-role |
+| 二進位檔 | Supabase Storage | Brief 素材（PDF/圖片/Excel）、匯出報告 | 前端直傳 |
+| 會話狀態 | PostgreSQL + TanStack Query 快取 | Orchestrator state、Agent 中間狀態 | 後端寫入、前端讀取（Supabase Realtime 可選） |
+| 知識庫 | Markdown 檔（`rd_assistant_design_system/triz_knowledge_base/*.md`） | TRIZ 39 參數 / 矩陣 / 40 原理 / 分離原理 / 76 標準解 | 後端載入 in-memory |
+| Embedding 向量庫 | — | RAG（v1.1+ 預留） | TBD — Vector DB Owner TBD by 2026-Q3 TBD |
+
+### 5.2 核心資料實體（概要）
+
+以下為 Supabase migrations 與 Pydantic schema 對應之主要實體群組。欄位細節以檔為準。
+
+| 實體群組 | Supabase 表（代表） | Pydantic 類別（代表） | 關聯 E3 章節 |
+|---------|-------------------|---------------------|-------------|
+| **Project & Phase** | `projects`（phase/status/must_criteria_config JSONB） | — | §11.1 / ADR-002 |
+| **Brief & Requirements** | `constraints`, `kpis`, `brief_assets` | `BriefExtractionResponse`, `ExtractedConstraint`, `ExtractedKpi` | Step 1 (§11.2) |
+| **Socratic & Assumptions** | `socratic_questions`, `assumptions` | `SocraticResponse`, `ExtractedAssumption`, `ValidationPassportAssumption` | Step 2/4 (§11.2) |
+| **Causal Loop & Contradictions** | `cld_nodes`, `cld_edges`, `contradictions` | `CldGenerationResponse`, `ContradictionFormalize*` | Step 3 (§11.2) |
+| **Subsystem Hierarchy（3-level）** | `subsystems`（migration 003 / 007 / 008） | `SubsystemSuggestResponse`, `SuggestedSubsystem`, `InterfaceContract`, `PackageMap`, `SpatialEstimate` | Step 5b (§11.2) + Appendix A |
+| **TRIZ Layered**（TC/PC/SF 分層） | migration 010 (`triz_layered_drilldown`), `contradictions.kind`（migration 009 `pc_decomposition`） | `LayeredTrizSolution`, `L1Surface`, `L2RootCause`, `L3StructuralCheck`, `SuFieldModel`, `DeepenLink`, `DifferentialAnalysis` | Step 5a (§11.2) + Appendix B |
+| **Anti-Anchor & Passport**（migration 001） | `anti_anchor_routes`, `validation_passports` | `AntiAnchorRoute`, `ValidationPassport` | Step 5-0 (§11.2) + Appendix C |
+| **SCAMPER** | `scamper_variants` | `ScamperVariant`, `ScamperResponse` | Step 5c (§11.2) |
+| **Concept Routes & Compatibility（ADR-005 新增）** | `concept_routes`, `compatibility_pairs` | `ConvergenceAlternativeInput`, `ConvergenceContradictionInput`, `SecondaryContradiction` | Step 5d (§11.2) |
+| **MUST Evaluation** | `must_evaluations` | `MustEvaluationRequest`, `MustCriterionConfig`, `MustCriterionResult` | Step 5e (§11.2) |
+| **Pre-CAD Review** | `pre_cad_reviews` | `PreCadAnalyzeResponse`, `SpatialTrace` | Step P (§11.2) |
+| **Evidence & Risk** | `evidence_matrix`, `risks` | `EvidenceReference`, `RiskSuggestion` | Step 6 / 6e (§11.2) |
+| **Decision & Actions** | `decision_records`, `actions`, `want_criteria` | `ActionSuggestion`, `SuggestedWantCriterion` | Step 7 (§11.2) |
+| **Knowledge Assets** | `knowledge_entries`, `learned_components` | `LearnedComponentPromote*` | Step 8 (§11.2) + Appendix A §9 |
+| **Gate & Traceability** | `gate_checks`, `traceability_links`（migration 002） | `GateCheckResponse`, `GateCheckItem` | §11.4 Gate 判定 |
+| **Unknown Factors & LLM Usage**（ADR-002/003） | `unknown_factors`, `llm_usage_logs` | `DiscoveredUnknownFactor` | P1 (§11.5) |
+
+### 5.3 資料存取模式
+
+```
+前端 CRUD 路徑 (ADR-001)：
+  Browser → @supabase/supabase-js (anon key) → RLS 過濾 → PostgreSQL
+
+後端 AI 路徑 (ADR-001/002/003)：
+  Browser → FastAPI (JWT header) → supabase-py (service-role) → PostgreSQL
+                                  ↘ Anthropic API (LLMService with retry)
+                                  ↘ Tavily API (Evidence Retrieval Service)
+```
+
+### 5.4 資料治理與保留
+
+| 項目 | 策略 | 來源 |
+|------|------|------|
+| RLS 策略 | 27 張表皆有 tenant/owner-based RLS（`supabase/migrations/002_rls_policies.sql`） | ADR-001 |
+| Schema 遷移 | Supabase migrations 000-010，僅 forward-migration | ADR-001 |
+| 業務規則強制 | DB BEFORE UPDATE trigger（phase 轉換）+ `check_gate(project_id, gate_id)` RPC | ADR-002 |
+| 資料保留期 | TBD — Legal/Privacy Owner TBD by 2026-Q2 TBD（見 `docs/00-discover/E1x--privacy-compliance-seed.md`） | — |
+| 備份 | Supabase 自動 Point-in-Time Recovery（Pro plan） | TBD — SRE Owner TBD by Release TBD |
+
+---
+
+## §6 部署與基礎設施架構
+
+> 本節為概述；完整部署/運維程序見 `docs/04-deliver/E9--deployment-and-operations-guide.md`。
+
+### 6.1 部署拓撲
+
+```
+┌──────────────────────────────────────────────────────┐
+│  Dev / Prod Host (docker-compose.yml — ADR-004)      │
+│  ┌────────────────────┐   ┌────────────────────┐    │
+│  │ frontend container │   │ backend container  │    │
+│  │ nginx + Vite build │   │ FastAPI + uvicorn  │    │
+│  │ :80                │   │ :8000              │    │
+│  └─────────┬──────────┘   └─────────┬──────────┘    │
+│            │                         │               │
+│            │ (HTTPS)                 │ (HTTPS)       │
+└────────────┼─────────────────────────┼───────────────┘
+             │                         │
+             ▼                         ▼
+   ┌──────────────────┐       ┌──────────────────┐
+   │ Supabase Cloud   │       │ Anthropic API    │
+   │ (PG+Auth+Store)  │       │ Tavily API       │
+   └──────────────────┘       └──────────────────┘
+```
+
+### 6.2 環境配置
+
+| 環境 | Host | Supabase | LLM Key | 來源 |
+|------|------|----------|--------|------|
+| Local Dev | Developer laptop docker-compose | Cloud (dev project) | Anthropic dev key | `.env.example`（ADR-004 action item） |
+| Staging | TBD — SRE Owner TBD by M5 (2026-W18) TBD | Cloud (staging) | Anthropic staging | TBD |
+| Production | TBD — SRE Owner TBD by M6 (Release v1.0) TBD | Cloud (prod) | Anthropic prod | TBD |
+
+### 6.3 相關 ADR
+
+- **ADR-001**：BaaS SaaS 取代自建 DB，運維邊界大幅縮小
+- **ADR-004**：Docker + docker-compose 一鍵啟動；不納入 v1.0：CI/CD pipeline、全頁面 Playwright
+
+### 6.4 CI/CD 狀態
+
+手動部署於 v1.0 可接受（ADR-004 §不納入 v1.0）；v1.1 建立 pipeline — **TBD — DevOps Owner TBD by v1.1 TBD**。
+
+---
+
+## §7 跨領域考量 (Cross-Cutting Concerns / NFR)
+
+### 7.1 效能 (Performance)
+
+| 指標 | 目標 | 策略 |
+|------|------|------|
+| AI 端點單次回應 P50 | < 8 秒 | Haiku for 輕量檢索、Sonnet for 推理；ADR-003 Phase 3 模型路由 |
+| AI 端點單次回應 P99（含 retry） | < 30 秒 | tenacity max 3 retries、指數退避 min=1s max=10s |
+| 前端首屏 TTI | < 3 秒 | Vite build + code splitting + lazy-solve（近期 commit `feat(frontend): lazy-solve`） |
+| 收斂圖渲染 | ≤ 200 節點流暢 | @xyflow + dagre layout |
+| 批次 Agent 並行度 | 5a 每條矛盾 + 5c 每子系統獨立 | §11.4 並行處理規則 |
+
+### 7.2 安全 (Security)
+
+| 項目 | 機制 | 來源 |
+|------|------|------|
+| 身份認證 | Supabase Auth（Email/Password + OAuth） | ADR-001 |
+| 授權 | Row-Level Security（27 表） | ADR-001；`002_rls_policies.sql` |
+| 後端權限 | Service-role key 僅伺服器持有、環境變數注入 | ADR-001 |
+| 業務規則強制 | Supabase BEFORE UPDATE trigger + `check_gate` RPC | ADR-002 |
+| LLM Prompt 注入防護 | Pydantic 輸出驗證、系統 prompt 與使用者輸入隔離 | ADR-003 |
+| 敏感資料隱私 | 客戶設計資料隔離 — **TBD — Legal Owner TBD by v1.0 TBD**；見 `E1x--privacy-compliance-seed.md` |
+| 依賴安全性 | Dependabot / pip-audit — **TBD — Security Owner TBD by v1.1 TBD** |
+
+詳見 `docs/04-deliver/E8--security-and-readiness-checklists.md`。
+
+### 7.3 可觀測性 (Observability)
+
+| 面向 | 現況 | 計畫 |
+|------|------|------|
+| 結構化日誌 | FastAPI uvicorn access log | 集中化日誌聚合 — TBD — SRE Owner TBD by v1.1 TBD |
+| LLM 使用量追蹤 | 計畫 `llm_usage_logs` 表 | ADR-003 Phase 2 |
+| Token 成本監控 | — | ADR-003 Phase 3（per-project 預算） |
+| Error tracking | — | Sentry / equivalent — TBD — SRE Owner TBD by v1.1 TBD |
+| 健康檢查 | `GET /health` | ✅ 已實作（ADR-004） |
+
+### 7.4 可靠性 (Reliability)
+
+| 項目 | 策略 | 來源 |
+|------|------|------|
+| LLM API 暫時性錯誤 | tenacity 指數退避 3 retries | ADR-003 Phase 1 |
+| LLM 輸出異常 | Pydantic `.model_validate()` + JSON markdown fence 容錯 | ADR-003 |
+| Supabase 失效 | SaaS SLA；無跨區 failover（v1.0 接受） | — |
+| DB 一致性 | PostgreSQL ACID + 狀態機觸發器 | ADR-002 |
+
+### 7.5 可維護性 (Maintainability)
+
+| 項目 | 策略 |
+|------|------|
+| 模組邊界 | Frontend pages / hooks / components；Backend routers / agents / services / tools |
+| 型別 | TS 5.8（frontend）+ Pydantic 2.10（backend）雙端型別安全 |
+| OpenAPI | FastAPI 自動產生 `/docs`；v1.1 前端型別自動同步 — TBD — DevOps Owner TBD by v1.1 TBD |
+| Linting | ESLint 9 + Ruff 0.9 |
+| ADR | `docs/01-define/adrs/ADR-001..005`，架構變更必留 ADR |
+
+### 7.6 可測試性 (Testability)
+
+| 層 | 工具 | 目標（ADR-004） |
+|----|------|----------------|
+| Backend AI | pytest + LLM mock fixtures | 16 AI 端點全覆蓋（Happy / Invalid LLM / Validation） |
+| Backend 規則 | pytest | TRIZ matrix 確定性測試 |
+| Frontend hooks | Vitest | 核心業務 hook（contradictionScan / convergenceLoop / supabaseQuery） |
+| E2E | Playwright smoke | 1 條 Happy Path（Brief → Explore → Create） |
+
+### 7.7 國際化 (i18n)
+
+v1.0：繁體中文介面、Prompt 中英混用。i18n 多語切換 — **TBD — PM Owner TBD by v1.1+ TBD**。
+
+### 7.8 可及性 (Accessibility)
+
+Radix UI 提供 WAI-ARIA 基礎；a11y 審計 — **TBD — UX Owner TBD by v1.1 TBD**。
+
+---
+
+## §8 風險與緩解策略
+
+本節整合來自 §11.3（路徑依賴 AI 機制）以及 `docs/00-discover/E1x--assumption-risk-register.md` 的架構相關風險。風險分數 = P × I（1-5）。
+
+### 8.1 架構與技術風險（Top）
+
+| ID | 風險 | P | I | 分數 | 緩解 | 關聯 |
+|----|------|---|---|-----|------|------|
+| TR-01 | AI 幻覺導致錯誤建議 | 4 | 5 | 20 | 強制證據鏈 + Pydantic 驗證 + Validation Passport + Confidence Score；長期 Hallucination Detection Agent | ADR-003 / §11.3 |
+| TR-02 | 用戶抗拒結構化輸入 | 4 | 4 | 16 | AI 預填、漸進輸入、最小欄位 | PRD G6 |
+| TR-04 | 知識庫資料品質不佳 | 3 | 4 | 12 | Evidence Retrieval (ADR-005) + 資料清洗 + 知識回寫品質控制 | ADR-005 |
+| TR-05 | 與現有 PLM/CAD 整合困難 | 3 | 3 | 9 | 標準 API + 階段性整合；v1.1+ 評估 | E1x-risk |
+| TR-06 | AutoTRIZ 規則引擎覆蓋率不足 | 3 | 3 | 9 | LLM 補足 + 規則庫持續擴充 | §11.5 + Appendix B |
+| TR-08 | LLM API 成本失控 | 3 | 3 | 9 | Token logging (Phase 2) + 模型路由 (Phase 3) + Caching | ADR-003 |
+| BR-05 | Vendor Lock-in on Anthropic | 3 | 4 | 12 | 抽象 LLM 介面層；定期評估 OpenAI/Gemini | ADR-003 |
+
+### 8.2 路徑依賴風險（產品特性風險，由 AI 機制緩解）
+
+| 症狀 | 影響 Step | 緩解機制 | 來源 |
+|------|---------|---------|------|
+| 慣用架構偏見 | Step 2 理解全貌 | Socratic 七類提問 + Problem Reframing | §11.3 機制 1 |
+| 矛盾盲視 | Step 3 系統建模 | Forced Divergence + Contradiction Convergence Graph | §11.3 機制 2 + 6 |
+| 錨定效應 | Step 5-0/5a/5c | Anti-Anchor Sprint（第一性原理 prompt） + Anti-Anchor Gate | §11.3 機制 2/4 + Appendix C |
+| 隱含假設 | Step 2-4 | Assumption Challenge（質疑回寫） | §11.3 機制 1 |
+| 經驗慣性 | Step 5a/5c | Cross-Domain Analogical Search | §11.3 機制 3 |
+
+### 8.3 資料完整性風險
+
+| 風險 | 緩解 | 來源 |
+|------|------|------|
+| `projects.phase` 被前端任意設值 | Supabase BEFORE UPDATE trigger（P0） | ADR-002 / WBS A-6.1 |
+| Gate 檢查可被繞過 | `check_gate()` RPC + 前端呼叫門禁 | ADR-002 |
+| `unknown_factors` localStorage 遺失 | 遷移至 Supabase 表（P1） | ADR-002 / WBS |
+
+### 8.4 商業風險（架構連動）
+
+| ID | 風險 | 架構應對 |
+|----|------|---------|
+| BR-01 | 市場採納速度低於預期 | 漸進式負擔（PRD P6）+ AI 預填最小化輸入成本 |
+| BR-02 | 法規 / IP 風險（PDPA/GDPR） | 租戶隔離架構 + 資料加密 — TBD |
+| BR-05 | Vendor Lock-in on Anthropic | §4.3 抽象 LLM 介面層 |
+
+完整清單見 `docs/00-discover/E1x--assumption-risk-register.md`。
+
+---
+
+## §9 架構演進路線圖
+
+> 里程碑來源：`docs/01-define/E3x--wbs-development-plan.md` §6 關鍵里程碑 + ADR-003/005 階段規劃 + ADR-002 P0/P1/P2。
+
+### 9.1 近期里程碑（v1.0 收尾）
+
+| 里程碑 | 日期 | 架構意義 | 狀態 |
+|-------|------|---------|------|
+| M1 WS-B 主差距修正完成 | 2026-03-12 | 42 工作包完成，E2E 骨幹 live | Done |
+| M2 API 端點對齊 + 501 清零 | 2026-04-07 | 16→31 routes，路徑 100% 對齊 SOW | Done |
+| M3 Sprint 3 審查決策 live | 2026-04-07 | Evidence / Risks / Decision 全 hook 化 | Done |
+| M4 Sprint 4 知識 + Mock 清零 | 2026-W17 | 7 mock 移除 + Playwright smoke 通過 | In Progress |
+| **M5 P0 closure（phase trigger）** | **2026-W18** | ADR-002 P0 狀態機觸發器 + Gate RPC 上線 | Pending |
+| **M6 Release v1.0** | **TBD by PM TBD** | Gate 1.1→PG3 全流程可重現走查 | Pending |
+
+### 9.2 中期（v1.0 Hardening → v1.1）
+
+| 項目 | 來源 | 預期 |
+|------|------|------|
+| ADR-003 Phase 2：Token logging + Prompt 外部化 | ADR-003 | v1.0 Hardening |
+| Knowledge Writeback 管線（6 類資產自動沉澱） | ADR-002 P2 + WBS | v1.1 |
+| Export 端點（Markdown + JSON + PDF） | ADR-002 P2 | v1.0 Hardening（已標 Done in WBS A-4.5） |
+| Assumption Disprove 串聯影響分析 | ADR-002 P2 | v1.1 |
+| 前端型別自動同步（OpenAPI → TS） | WBS 品質指標 | v1.1 |
+| CI/CD pipeline | ADR-004 | v1.1 |
+| i18n 多語 | §7.7 | v1.1+ |
+
+### 9.3 長期（v1.1+ → v2.0）
+
+| 項目 | 驅動 | 階段 |
+|------|------|------|
+| ADR-003 Phase 3：智慧模型路由 + per-project token 預算告警 | ADR-003 | v1.1 |
+| Vector DB 接入（企業 RAG） | §5.1 + PRD Q2 | v1.1+ |
+| PLM/CAD API 整合（TR-05） | E1x-risk | v1.1+ |
+| Hallucination Detection Agent | TR-01 長期 | v2.0 |
+| LLM 介面層抽象（緩解 BR-05 Vendor Lock-in） | ADR-003 + §4.3 | v1.1 |
+| 多產業領域擴展（non-eBike） | ADR-005 Configurable MUST | 持續 |
+| On-premise / Hybrid 部署模式 | PRD Q6 | TBD — Deployment Owner TBD by Customer Ask TBD |
+
+### 9.4 範圍擴充歷史（ADR-005）
+
+| 擴充 | 時點 | 架構影響 |
+|------|------|---------|
+| Evidence Retrieval Service + Tavily | 已 Accept | `backend/app/services/evidence_retrieval.py`、ISO/EN/IEC 引用 |
+| Multi-Solution Adoption (M1-M5) | 已 Accept | `concept_routes`、`compatibility_pairs` 新增 2 表；29 張表 |
+| Configurable MUST | 已 Accept | `projects.must_criteria_config` JSONB |
+
+---
+
+## §10 附錄（Part 1）
+
+### 10.1 術語表
+
+| 術語 | 說明 |
+|------|------|
+| **BaaS** | Backend-as-a-Service（Supabase） |
+| **RLS** | Row-Level Security（Supabase/PostgreSQL） |
+| **Agent** | Multi-Agent 架構中的角色：Analyst / TRIZ Solver / Evaluator / Knowledge（§11.1） |
+| **Artifact** | 流程產出的核心工件：Constraint / Contradiction / Assumption / Concept Route 等（§11.4.4） |
+| **Gate** | Phase/Step 之間的品質關卡（Gate 1-8 + Anti-Anchor / Gate P / Gate C；§11.4.3） |
+| **Phase / Step** | Phase I-III + Step 1-8 的雙層狀態機（Appendix D） |
+| **Validation Passport** | 每個候選方案自帶的驗證護照（assumptions[], weak_points[], required_verifications[], confidence_level）；§11.3 機制 7 |
+| **Phase A / Phase B 收斂** | Phase A：矛盾空間健康度；Phase B：方案×矛盾交叉檢查（Appendix E §3） |
+| **北極星證據** | Evidence Matrix 中最關鍵的證據列，Gate C 要求 E2+ |
+| **TRIZ TC / PC / SF** | Technical Contradiction / Physical Contradiction / Su-Field 三層 drill-down（Appendix B / E） |
+
+### 10.2 圖例與 C4 標記
+
+- `C4Context` / `C4Container` / `C4Component`：Mermaid C4 plugin 語法
+- `SolidLine → Sync HTTPS`；`DashedLine → Async / Optional`（本文件一律 solid）
+
+### 10.3 變更記錄
+
+| 版本 | 日期 | 變更 | 作者 |
+|------|------|------|------|
+| v1.2 | — | Knowledge Source Ingestion + Contradiction Convergence Graph | — |
+| v1.3 | — | 收斂掃描拆 Phase A/B + Socratic Follow-up + Validation Passport | — |
+| v1.4 | 2026-03-26 | Phase B 改為 Decision Hub 手動觸發、SCAMPER 純創意、3-level 子系統、可證偽性 | — |
+| **v2.0** | **2026-04-15** | **重構對齊 VibeCoding 05 三部分/十章節骨架；新增 §1-§10 Part 1；原 §1-§7 降為 §11.x；Appendix A-E 保留原樣為 Part 3** | ARCH + TL |
+
+### 10.4 相關文件清單
+
+- 需求：`docs/00-discover/E1--project-brief-and-prd.md`
+- 風險：`docs/00-discover/E1x--assumption-risk-register.md`
+- 決策：`docs/01-define/adrs/ADR-001..005`
+- 計劃：`docs/01-define/E3x--wbs-development-plan.md`、`E3x--wbs-development-plan-addendum.md`
+- 系統互動：`docs/01-define/E3x--system-interaction-flow.md`
+- 下游 API Spec：`docs/02-design/E5--api-design-specification.md`
+- 部署：`docs/04-deliver/E9--deployment-and-operations-guide.md`
+- 安全：`docs/04-deliver/E8--security-and-readiness-checklists.md`
+
+---
+
+# Part 2 · 詳細設計
+
+> **說明**：Part 2 整段承接 v1.4 原 §1-§7「AI Agent 架構設計」全部內容（零遺失），作為本專案最核心的詳細設計。原章節 §1-§7 於 v2.0 重構後依下列對應降級為 §11.1-§11.6：
+>
+> | v1.4 章節 | v2.0 章節 |
+> |----------|----------|
+> | §1 Multi-Agent 架構總覽 | §11.1 |
+> | §2 逐步自動化分級 | §11.2 |
+> | §3 打破路徑依賴的 AI 機制 + §5 路徑依賴（詳細設計） | §11.3 |
+> | §4 Agent 間協作流程 | §11.4 |
+> | §6 技術實作建議（含 §6.4 API Endpoints） | §11.5 |
+> | §7 驗證方式 | §11.6 |
+>
+> **v1.4 更新內容**（保留歷史）：Phase B 收斂掃描從 TRIZ step 移至 Decision Hub（RD 選定方案後手動觸發）；SCAMPER 改為純創意工具（不再回饋收斂掃描）；Phase A 新增語意去重（is_confirmatory 標記）；子系統拆解改為三層階層（System→Module→Component）；假設提取新增可證偽性篩選（evidence_level E0-E4）。
+> **v1.3 更新**：收斂掃描拆為 Phase A（矛盾空間健康度，Step 2 起）/Phase B（方案交叉檢查，Step 5 後自動觸發）；Analyst Agent 新增 socratic follow-up、brief-impact、first-principles Anti-Anchor；Evaluator Agent 新增 Validation Passport 生成；Anti-Anchor 概念可晉升為 Step 5 候選方案；Step 5d 整合 TRIZ + SCAMPER + Anti-Anchor 候選；新增 3 個 API endpoints。
+> **v1.2 更新**：Knowledge Agent 新增 Source Ingestion；Analyst Agent 新增 Contradiction Convergence Graph；TRIZ Solver Agent 輸出新增受影響模組清單與潛在二次矛盾。
+
+## §11 AI Agent 協作架構
+
+> **對齊依據**：`RD_Design_Copilot_整合流程.md` v1.6 + `RD_Design_Copilot_State_Machine.md` v1.6
+
+---
+
+## §11.1 Multi-Agent 架構總覽
 
 ### 1.1 Agent 角色定義
 
 | Agent | 職責 | 核心能力 | 綁定工具 |
 |-------|------|---------|---------|
-| **Analyst Agent** | 需求解構、索克拉底問答（含第七類「重構」提問）、**索克拉底追問（回答深度分析 + 後續追問生成）**、**Brief 變更影響評估**、因果迴路建模、矛盾識別、假設質疑、**約束可行性驗證 (Constraint Feasibility Check)**、**問題框架挑戰 (Problem Reframing)**、**第一性原理 Anti-Anchor（物理原則、因果鏈量化預期、邊界條件、邏輯謬誤守衛）**、**矛盾收斂圖管理 (Phase A/B) + 架構健康度監控**：Phase A（Step 2 起，矛盾空間健康度，含語意去重 is_confirmatory）僅在 TRIZ step 執行、Phase B（Decision Hub 手動觸發，方案交叉檢查）、掃描二次矛盾、分級 (Fatal/Major/Minor)、追蹤收斂、節點 > 5 強制暫停 | 語意理解、結構化拆解、隱含假設偵測、**物理可行性分析、問題重構、解法-模組耦合影響分析、矛盾分級判定、回答深度分析、Brief 變更追蹤** | LLM、Prompt Template、Functional Model Generator |
+| **Analyst Agent** | 需求解構、蘇格拉底問答（含第七類「重構」提問）、**蘇格拉底追問（回答深度分析 + 後續追問生成）**、**Brief 變更影響評估**、因果迴路建模、矛盾識別、假設質疑、**約束可行性驗證 (Constraint Feasibility Check)**、**問題框架挑戰 (Problem Reframing)**、**第一性原理 Anti-Anchor（物理原則、因果鏈量化預期、邊界條件、邏輯謬誤守衛）**、**矛盾收斂圖管理 (Phase A/B) + 架構健康度監控**：Phase A（Step 2 起，矛盾空間健康度，含語意去重 is_confirmatory）僅在 TRIZ step 執行、Phase B（Decision Hub 手動觸發，方案交叉檢查）、掃描二次矛盾、分級 (Fatal/Major/Minor)、追蹤收斂、節點 > 5 強制暫停 | 語意理解、結構化拆解、隱含假設偵測、**物理可行性分析、問題重構、解法-模組耦合影響分析、矛盾分級判定、回答深度分析、Brief 變更追蹤** | LLM、Prompt Template、Functional Model Generator |
 | **TRIZ Solver Agent** | AutoTRIZ 規則查表 + LLM 原理具體化 + SCAMPER 變形（純創意工具，產出直接進入候選池，不回饋收斂掃描）+ **子系統拆解（三層階層 System→Module→Component）**。輸出增加：**受影響模組清單 + 潛在二次矛盾** | 矛盾矩陣查表、分離原理匹配、76 標準解映射、原理實體化、**三層子系統拆解** | TRIZ Knowledge Base (Prompt MD)、LLM、RAG |
 | **Evaluator Agent** | MUST 規則驗證、KT 決策分析、證據品質評分、Gate 判定、**Validation Passport 生成**（為每個候選方案生成 assumptions[]、weak_points[]、required_verifications[]、confidence_level）、**Phase A/B 收斂判定**（Phase B 由 Decision Hub 手動觸發，非自動觸發） | 規則引擎、加權評分、風險評估、**驗證護照生成** | MUST Rulebook、Evidence Matrix、Risk Register、LLM |
 | **Knowledge Agent** | 企業 RAG 檢索、Web 文獻搜尋、跨域類比、知識回寫、**多模態素材解讀 (Source Ingestion)** | 向量檢索、Web Scraping、文件分類、Citation 生成、**多模態文件解析 (PDF/圖片/Excel → 結構化提取)** | Vector DB、Web Search API、Document Store、**Multimodal LLM** |
@@ -77,7 +692,7 @@ graph TB
 
 ---
 
-## §2 逐步自動化分級
+## §11.2 逐步自動化分級
 
 ### 2.1 自動化等級定義
 
@@ -95,7 +710,7 @@ graph TB
 | Step | 正式名稱 | Phase | 自動化等級 | 主要 Agent | 人類角色 | 路徑依賴風險 | 核心工件 |
 |------|---------|-------|-----------|-----------|---------|-------------|---------|
 | **1** | **問題界定** (白帽 + 5W1H + **素材上傳解讀**) | I | AI-Assisted | Analyst + Knowledge | 提供原始需求、**上傳素材**、確認約束句 | 低 | Constraint |
-| **2** | **理解全貌** (索克拉底問答) | I | **AI-Driven** | Analyst + Knowledge | 參與問答、確認假設與矛盾 | **高** — 慣用架構偏見 | Contradiction, Assumption |
+| **2** | **理解全貌** (蘇格拉底問答) | I | **AI-Driven** | Analyst + Knowledge | 參與問答、確認假設與矛盾 | **高** — 慣用架構偏見 | Contradiction, Assumption |
 | **3** | **系統建模** (因果迴路 + TRIZ 矛盾 + 斷路點) | I | **AI-Driven** | Analyst + TRIZ Solver | 校準矛盾句、確認斷路點 | **高** — 傾向忽略矛盾 | Contradiction, Breakpoint |
 | **4** | **假設與驗證規劃** (HDA + 未知集合) | II | AI-Assisted | Analyst + Knowledge | 填寫假設台帳、定義未知集合 | 中 | Assumption |
 | **5-0** | **Anti-Anchor Sprint** (反路徑依賴，第一性原理 prompt，概念可晉升為 Step 5 候選) | II | **Fully Auto** | Analyst + Knowledge | 審核非典型架構 | **最高** — Anti-Anchor 核心 | — |
@@ -115,7 +730,7 @@ graph TB
 | Step | State Machine 中的 Human R&R | State Machine 中的 AI R&R | Agent 映射 |
 |------|---------------------------|-------------------------|-----------|
 | 1 | 定義 Mission / Hard Constraints / Soft Objectives、**上傳素材** | 改寫約束句、生成缺口問卷、**解讀素材並提取約束/假設/數據** | Analyst + Knowledge Agent |
-| 2 | 參與索克拉底問答、識別矛盾 | 固定執行七類提問、匯總矛盾列表 | Analyst Agent |
+| 2 | 參與蘇格拉底問答、識別矛盾 | 固定執行七類提問、匯總矛盾列表 | Analyst Agent |
 | 3 | 輔助因果迴路圖、正式化矛盾句 | 協助繪製因果迴路、提供 TRIZ 模板 | Analyst + TRIZ Solver |
 | 4 | 填寫假設台帳、定義未知集合 | 提供模板、整理未知因子 | Analyst + Knowledge |
 | 5 | 定義子系統（三層階層）、審查方案、執行 MUST、**確認矛盾分級**、**Decision Hub 觸發 Phase B** | Anti-Anchor / TRIZ / SCAMPER（純創意）/ 方案生成 / MUST 快篩 / **Phase A 收斂掃描 (TRIZ step) + Phase B 收斂掃描 (Decision Hub 手動觸發)** | TRIZ Solver + Analyst + Evaluator |
@@ -127,9 +742,11 @@ graph TB
 
 ---
 
-## §3 打破路徑依賴的 AI 機制
+## §11.3 打破路徑依賴的 AI 機制
 
-### 3.1 問題定義
+> 本節整合 v1.4 §3（機制總論）與 §5（詳細設計）。為最小化內容搬動風險，詳細設計小節（§11.3.3 風險熱力圖、§11.3.4 機制與 Step 對應表）保留在 §11.4 後方；閱讀順序建議：11.3.1 → 11.3.2 → 11.4 → 11.3.3 → 11.3.4。
+
+### 11.3.1 問題定義
 
 RD 路徑依賴的典型表現：
 
@@ -141,14 +758,14 @@ RD 路徑依賴的典型表現：
 | **隱含假設** | 將假設當作事實，未質疑技術前提 | Step 2-4 |
 | **經驗慣性** | 只搜尋熟悉領域的解法，忽略跨域靈感 | Step 5a / 5c |
 
-### 3.2 AI 對抗機制
+### 11.3.2 AI 對抗機制
 
 #### 機制 1：Assumption Challenge（假設質疑）
-- **觸發點**：Step 2 索克拉底問答過程中
+- **觸發點**：Step 2 蘇格拉底問答過程中
 - **執行者**：Analyst Agent
 - **對齊**：整合流程 §Step 2 七類提問中的「假設」、「反思」與「重構」類
 - **作法**：
-  1. 從索克拉底問答中提取所有隱含假設（如「必須用齒輪傳動」）
+  1. 從蘇格拉底問答中提取所有隱含假設（如「必須用齒輪傳動」）
   2. 對每個假設提出反問：「如果不用 X，還有什麼替代方案？」
   3. 產出 Assumption Register，標記 `challenged` / `confirmed`
 - **產出物**：Assumption 工件（Draft），供 Step 4 假設台帳引用
@@ -190,9 +807,9 @@ RD 路徑依賴的典型表現：
 
 ---
 
-## §4 Agent 間協作流程
+## §11.4 Agent 間協作流程
 
-### 4.1 主流程序列圖
+### 11.4.1 主流程序列圖
 
 ```mermaid
 sequenceDiagram
@@ -225,7 +842,7 @@ sequenceDiagram
     ORC->>EA: Gate 1 檢查
     EA-->>ORC: Gate 1 通過 (DRAFT→PHASE_I)
 
-    ORC->>AA: Step 2 理解全貌 - 索克拉底七類提問 (含「重構」類: 質疑問題框架)
+    ORC->>AA: Step 2 理解全貌 - 蘇格拉底七類提問 (含「重構」類: 質疑問題框架)
     ORC->>KA: Step 2 - 歷史假設/失效機制文獻
     AA-->>ORC: Contradiction (Draft) + Assumption (Draft)
     ORC->>AA: Step 2 - Assumption Challenge (假設質疑)
@@ -341,7 +958,7 @@ sequenceDiagram
     EA-->>ORC: Gate 8 通過 (PHASE_III→COMPLETED)
 ```
 
-### 4.2 並行處理規則
+### 11.4.2 並行處理規則
 
 > 對齊 State Machine §平行處理說明：「不同矛盾句的 TRIZ 解法、不同子系統的 SCAMPER 變形可並行執行」。
 
@@ -354,7 +971,7 @@ sequenceDiagram
 
 > **注意**：5b（子系統定義）依賴 5a（TRIZ 解矛盾）的解法方向指出受影響子系統，但不同矛盾的 5a 可與不同子系統的 5c 並行。所有並行產出匯聚到 5d (AI 方案生成) 做交叉組合，再由 5e (MUST 快篩) 統一淘汰。
 
-### 4.3 Gate 自動化判定
+### 11.4.3 Gate 自動化判定
 
 > 對齊 State Machine §Gate 與 Phase 轉換對照表，完整列出所有 Gate。
 
@@ -372,7 +989,7 @@ sequenceDiagram
 | **Gate 7** | Step 7 → Step 8 | 內部 Gate | Phase III 內部 | Human-Led | KT 決策記錄完整已簽核 + 所有 H 風險有緩解 | N/A |
 | **Gate 8** | Step 8 → Done | 內部 Gate | **PHASE_III → COMPLETED** | AI-Driven | 所有核心工件 Baselined → Released | 人類覆審 |
 
-### 4.4 Artifact State 轉換（對齊 State Machine）
+### 11.4.4 Artifact State 轉換（對齊 State Machine）
 
 | Step | 核心工件 | 狀態轉換 |
 |------|---------|---------|
@@ -393,9 +1010,9 @@ sequenceDiagram
 
 ---
 
-## §5 打破路徑依賴的 AI 機制（詳細設計）
+### 11.3.3 路徑依賴風險熱力圖（詳細設計）
 
-### 5.1 路徑依賴風險熱力圖
+> 本小節整合自 v1.4 §5「打破路徑依賴的 AI 機制（詳細設計）」。
 
 ```
 Step:    1     2     3     4    5-0   5a    5b    5c    5d    5e     P     6    6e     7     8
@@ -408,12 +1025,12 @@ AI介入: ◐    ●    ●    ◐    ●    ●    ●    ●    ●    ●    
 
 > **設計原則**：路徑依賴風險越高的步驟，AI 介入程度越深。正是因為人類在 Step 2（慣用架構）、Step 3（矛盾盲視）、Step 5-0/5a（錨定效應）最容易陷入慣性，才需要 AI 強制介入打破錨定。
 
-### 5.2 機制與 Step 對應表
+### 11.3.4 機制與 Step 對應表
 
 | AI 機制 | 觸發 Step | Agent | 對齊整合流程章節 |
 |---------|----------|-------|----------------|
 | **Constraint Feasibility Check** | **Step 1** | **Analyst + Knowledge** | **§Step 1 約束可行性驗證** |
-| Assumption Challenge | Step 2 | Analyst | §Step 2 索克拉底七類提問 |
+| Assumption Challenge | Step 2 | Analyst | §Step 2 蘇格拉底七類提問 |
 | **Problem Reframing** | **Step 2** | **Analyst** | **§Step 2 第七類「重構」提問** |
 | **Source Ingestion** | **Step 1** | **Knowledge** | **§Step 1 多模態素材輸入** |
 | Forced Divergence | Step 5-0 + 5a | TRIZ Solver + Analyst | §5.1 Anti-Anchor Sprint + §5a TRIZ 解矛盾 |
@@ -427,9 +1044,9 @@ AI介入: ◐    ●    ●    ◐    ●    ●    ●    ●    ●    ●    
 
 ---
 
-## §6 技術實作建議
+## §11.5 技術實作建議
 
-### 6.1 推薦框架：LangGraph
+### 11.5.1 推薦框架：LangGraph
 
 選擇理由：
 - 原生支援有狀態的多 Agent 圖（State Graph）
@@ -437,7 +1054,7 @@ AI介入: ◐    ●    ●    ◐    ●    ●    ●    ●    ●    ●    
 - 支援條件分支、並行節點、人類介入節點（`interrupt_before` / `interrupt_after`）
 - Python 生態，可直接對接 FastAPI 後端
 
-### 6.2 Agent-Tool 綁定
+### 11.5.2 Agent-Tool 綁定
 
 ```yaml
 analyst_agent:
@@ -502,7 +1119,7 @@ knowledge_agent:
     web: "WEB-{類型}-{序號}"      # e.g., WEB-PAT-003
 ```
 
-### 6.3 State Management 對接
+### 11.5.3 State Management 對接
 
 ```yaml
 process_states:
@@ -542,25 +1159,25 @@ orchestrator_state:
 
 ---
 
-## §6.4 API Endpoints
+### 11.5.4 API Endpoints
 
 | Method | Endpoint | Agent | 說明 |
 |--------|----------|-------|------|
 | POST | `/convergence/scan` | Analyst + Evaluator | 收斂掃描：Phase A（矛盾空間健康度，Step 2 起，含語意去重 is_confirmatory）/ Phase B（方案×矛盾交叉檢查，Decision Hub 手動觸發） |
 | POST | `/alternatives/validation-passport` | Evaluator | 為任意候選方案生成 Validation Passport（assumptions[], weak_points[], required_verifications[], confidence_level） |
-| POST | `/questions/follow-up` | Analyst | 分析索克拉底回答深度，生成後續追問 |
-| POST | `/questions/brief-impact` | Analyst | 評估 Brief 變更對哪些索克拉底問題有影響 |
+| POST | `/questions/follow-up` | Analyst | 分析蘇格拉底回答深度，生成後續追問 |
+| POST | `/questions/brief-impact` | Analyst | 評估 Brief 變更對哪些蘇格拉底問題有影響 |
 
 ---
 
-## §7 驗證方式
+## §11.6 驗證方式
 
-### 7.1 E2E 驗證場景：eBike 馬達散熱
+### 11.6.1 E2E 驗證場景：eBike 馬達散熱
 
 1. **輸入**：「eBike 中置馬達在長坡連續高負載下溫度超標，需在 150×80mm 空間內解決」
 2. **預期結果**：
    - Step 1：Constraint (Draft) 含三個最不能失敗指標，Gate 1 通過
-   - Step 2：索克拉底問答產出 ≥10 假設 + ≥3 矛盾，Assumption Challenge 至少質疑「必須用風冷」
+   - Step 2：蘇格拉底問答產出 ≥10 假設 + ≥3 矛盾，Assumption Challenge 至少質疑「必須用風冷」
    - Step 3：因果迴路圖含熱-機-振耦合，TRIZ 矛盾句正式化（改善散熱 vs 惡化空間）
    - Step 5-0：3 種非典型架構，≥1 條非對標（如磁力傳動），Anti-Anchor Gate 通過
    - Step 5a：每條矛盾 ≥3 條 TRIZ 工程對映，含 ≥1 條非風冷方案（相變材料、液冷、熱管）
@@ -569,7 +1186,7 @@ orchestrator_state:
    - Step P：Pre-CAD 審查收斂至 3-5 條
    - Step 8：散熱方案知識回寫至企業知識庫（6 類資產）
 
-### 7.2 檢查清單
+### 11.6.2 檢查清單
 
 - [ ] 每個 Step 名稱與 `RD_Design_Copilot_State_Machine.md` Step 編號對照表完全一致
 - [ ] 每個 Gate 的判定邏輯與 `整合流程.md` Gate 檢查點一致
@@ -584,7 +1201,7 @@ orchestrator_state:
 
 ---
 
-## 附錄 A：與現有文件的對應關係
+### 11.6.3 與現有文件的對應關係（原 v1.4 附錄 A）
 
 | 本文件章節 | 對應的 E2E 文件 | 對應章節 |
 |-----------|----------------|---------|
@@ -605,9 +1222,11 @@ orchestrator_state:
 
 ---
 
-## Appendix（架構細節整合）
+---
 
-> 以下 5 份附錄原為獨立 SA 視角架構文件，對齊 VibeCoding 模板 05「整合性架構與設計文檔」的單檔概念，合併進 E3 成為 self-contained 完整架構文檔。原檔路徑保留於各附錄開頭說明。
+# Part 3 · 附錄（SA 視角架構細節）
+
+> 以下 5 份附錄原為獨立 SA 視角架構文件，對齊 VibeCoding Template 05「整合性架構與設計文檔」的單檔概念，合併進 E3 成為 self-contained 完整架構文檔；v2.0 重構後保留原樣作為 Part 3。原檔路徑保留於各附錄開頭說明。
 
 - [Appendix A: Forward Subsystem Discovery Architecture](#appendix-a-forward-subsystem-discovery-architecture)
 - [Appendix B: Forward TRIZ Solver Architecture](#appendix-b-forward-triz-solver-architecture)
@@ -3869,7 +4488,7 @@ flowchart LR
 
 > **v1.7 更新**：對齊 triz-to-scamper-flow v9 — 雙軌分析（反向創意/正向演繹）→ 候選池匯流 → 決策中心 → 統一評估。TRIZ 步驟拆為三路徑候選生成 + Phase A 健康度摘要卡。Phase B 由決策中心 RD 手動觸發。BranchExplorationPanel 從 Phase A 移除（Phase A 無分支概念）。ConvergenceGraph 改用 React Flow + Dagre。
 > **v1.6 更新**：收斂掃描拆為 Phase A（矛盾空間健康度）/Phase B（方案交叉檢查），Anti-Anchor 可晉升為候選方案，每個方案自帶 Validation Passport。
-> **v1.5 更新**：新增三層 AI 主動質疑機制——Gate 1 增加約束可行性驗證、Step 2 索克拉底擴展為七類（增加「重構」提問）、Step 5a-6 增加架構健康度監控（節點 > 5 或循環矛盾 → 強制回到 Step 1）。AI 角色從 solver 升級為 challenger。
+> **v1.5 更新**：新增三層 AI 主動質疑機制——Gate 1 增加約束可行性驗證、Step 2 蘇格拉底擴展為七類（增加「重構」提問）、Step 5a-6 增加架構健康度監控（節點 > 5 或循環矛盾 → 強制回到 Step 1）。AI 角色從 solver 升級為 challenger。
 > **v1.4 更新**：Step 5 內部子流程新增「5a-6: 矛盾收斂圖 (Contradiction Convergence Graph)」，Fatal/Major 矛盾必須完全收斂（不設次數上限），Minor 矛盾記入 Risk Register。新增 Pre-CAD Confidence Score。
 > **v1.3 更新**：統一 Gate C 位置定義（Step 6 完成時判定），修正工件狀態轉換對照表，修正 Baselined 拼寫。
 > **v1.2 更新**：Step 編號已按實際執行順序重新編排，引入雙層狀態機概念，並加入 `Step 6e: 證據補齊 (Evidence Closure)` 迴圈。
@@ -3879,7 +4498,7 @@ flowchart LR
 | 新編號 | 名稱 | Phase | 核心工件類型 |
 |--------|------|-------|------------|
 | Step 1 | 問題界定 | I | Constraint |
-| Step 2 | 理解全貌（索克拉底） | I | Contradiction, Assumption |
+| Step 2 | 理解全貌（蘇格拉底） | I | Contradiction, Assumption |
 | Step 3 | 系統建模（因果迴路+TRIZ矛盾+斷路點） | I | Contradiction, Breakpoint |
 | Step 4 | 假設與驗證規劃（HDA+未知集合） | II | Assumption |
 | **Step 5** | **創造與調整（TRIZ解矛盾→子系統定義→SCAMPER變形→方案集合→MUST快篩）** | **II** | Concept Route, Interface |
@@ -4082,14 +4701,14 @@ flowchart LR
     - 列出已知事實與未知缺口。
 - **Gate 1**: 「三個最不能失敗指標」被明確說出，且每個指標有「可量測」或「可判斷」的方式。**約束可行性驗證通過**（AI 確認約束組合物理可行或標示高風險邊界）。若約束物理不可能 → **不通過 Gate 1**。**核心工件 Constraint 狀態: Draft → Reviewed**。
 
-##### Step 2: 理解全貌（索克拉底問答）
+##### Step 2: 理解全貌（蘇格拉底問答）
 - **目的**: 挖掘「大家以為理所當然」的前提，為 TRIZ 矛盾識別做準備。
 - **核心工件**: Contradiction (Draft), Assumption (Draft)
 - **Human (RD Team) R&R**:
-    - 參與索克拉底問答，提供見解和證據。
+    - 參與蘇格拉底問答，提供見解和證據。
     - 初步識別潛在矛盾。
 - **AI (Copilot) R&R**:
-    - 固定執行索克拉底七類提問（澄清、假設、證據、觀點、後果、反思、**重構**）。
+    - 固定執行蘇格拉底七類提問（澄清、假設、證據、觀點、後果、反思、**重構**）。
     - **重構類提問**：質疑問題本身是否被正確框架——前提是否被不當鎖定？約束是否可刪除簡化？真正的問題是否被遮蔽？
     - 匯總問答結果，輸出初步的矛盾列表。
 - **Gate 2**: 至少列出 10 條關鍵假設，標出 Top 3 致命假設；至少識別 3 條核心矛盾。**核心工件 Contradiction, Assumption 狀態: Draft → Reviewed**。

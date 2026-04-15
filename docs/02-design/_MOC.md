@@ -32,6 +32,8 @@
   - Pilot 1: [`triz-solver`](specs/modules/triz-solver.md) — Forward TRIZ 分層解矛盾
   - Pilot 2: [`anti-anchor`](specs/modules/anti-anchor.md) — 反向路線生成
   - Pilot 3: [`subsystem-decomposer`](specs/modules/subsystem-decomposer.md) — 子系統分解 + 介面契約
+  - Pilot 4: [`evaluator`](specs/modules/evaluator.md) — Pre-CAD 六維評分 + Gate 決策
+  - Pilot 5: [`knowledge`](specs/modules/knowledge.md) — RAG citation + 多模態 ingest
 
 ## Specs — 依領域分組
 
@@ -61,7 +63,7 @@
 |----------|---------------------|------|
 | 03 BDD Guide | `E5x--bdd-scenarios.md` | Active |
 | 06 API Design | `E5--api-design-specification.md` | Active |
-| 07 Module Spec & Tests | `specs/modules/E5x--module-spec-index.md` + 3 pilots | Active |
+| 07 Module Spec & Tests | `specs/modules/E5x--module-spec-index.md` + 5 pilots | Active |
 | 08 Project Structure | `E5x--project-structure-guide.md` | Active |
 | 09 File Dependencies | `specs/E5x--file-dependencies.md` | Active |
 | 10 Class Relationships | `specs/E5x--class-relationships.md` | Active |
