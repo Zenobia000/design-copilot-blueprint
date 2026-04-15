@@ -82,6 +82,10 @@ export const queryKeys = {
     all: ['triz_solutions'] as const,
     byProject: (projectId: string | undefined) => ['triz_solutions', k(projectId)] as const,
   },
+  layered_triz_solutions: {
+    all: ['layered_triz_solutions'] as const,
+    byProject: (projectId: string | undefined) => ['layered_triz_solutions', k(projectId)] as const,
+  },
   subsystems: {
     all: ['subsystems'] as const,
     byProject: (projectId: string | undefined) => ['subsystems', k(projectId)] as const,

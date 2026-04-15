@@ -566,7 +566,7 @@ export function trizSolve(body: TrizSolveRequest) {
 
 export function trizSolveLayered(body: SolveTrizLayeredRequest) {
   return request<SolveTrizLayeredResponse>("/triz/solve-layered", body, {
-    timeoutMs: 300_000,
+    timeoutMs: 480_000,
   });
 }
 

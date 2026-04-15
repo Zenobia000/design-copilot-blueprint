@@ -262,7 +262,7 @@ design-copilot-blueprint/
 |------|------|
 | **Phase Gate Dashboard** | 多階段設計流程追蹤（Phase I–III），含 8-Gate + KPI 看板 |
 | **Brief (任務定義)** | Mission 定義 + AI 改寫 + 約束/KPI 建議 + 5W1H |
-| **Explore (探索)** | 索克拉底七類提問 + 因果迴路圖 (CLD) + 斷路點 |
+| **Explore (探索)** | 蘇格拉底七類提問 + 因果迴路圖 (CLD) + 斷路點 |
 | **Track (假設台帳)** | Kanban 四欄拖拉 + PDCA 狀態機 + 證據登錄 |
 | **Create (發散)** | Anti-Anchor + TRIZ 三路徑 + SCAMPER + MUST + Pre-CAD |
 | **Review (審查)** | 證據矩陣 (E0-E4) + 風險 P×S 矩陣 + 最小實驗 |

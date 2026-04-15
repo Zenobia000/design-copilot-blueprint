@@ -84,6 +84,7 @@ import {
   useDeleteAlternative,
 } from "@/hooks/api";
 import { useContradictions } from "@/hooks/api/useContradictions";
+import { useLayeredTrizSolutions } from "@/hooks/api/useLayeredTrizSolutions";
 import type { Contradiction } from "@/types/contradiction";
 import type { Json } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
@@ -197,6 +198,10 @@ export default function Create() {
   const compatibilityPairsQuery = useCompatibilityPairs(id);
   const trackAssumptionsQuery = useTrackAssumptions(id);
   const contradictionsQuery = useContradictions(id);
+  // v7 persistence: LTS rows upserted by backend `/triz/solve-layered` live in
+  // Supabase `layered_triz_solutions`. Hydrate on mount so page reload / tab
+  // switch keeps the drill-down results instead of wiping in-memory state.
+  const layeredQuery = useLayeredTrizSolutions(id);
 
   // ── Phase 1 context ──
   const { data: brief } = useBrief(id);
@@ -239,6 +244,15 @@ export default function Create() {
   // so each contradiction maps to exactly one LayeredTrizSolution card. Only
   // v7/v8 layered drill-down state. Keyed by contradiction_id.
   const [layeredSolutions, setLayeredSolutions] = useState<Record<string, LayeredTrizSolution>>({});
+  // Hydrate LTS state from Supabase on project load. Local optimistic updates
+  // (setLayeredSolutions after a fresh solve) win over server values because
+  // React Query refetch lags behind the in-flight POST by one tick — merging
+  // `prev` last preserves the just-computed entry until refetch completes.
+  useEffect(() => {
+    if (layeredQuery.data) {
+      setLayeredSolutions((prev) => ({ ...layeredQuery.data, ...prev }));
+    }
+  }, [layeredQuery.data]);
   // 9.2.4: Per-contradiction independent loading state
   const [solvingIds, setSolvingIds] = useState<Set<string>>(new Set());
   // WP 7.2: per-project quick_mode toggle. Defaults to false.
@@ -269,7 +283,7 @@ export default function Create() {
         project_id: id,
         contradiction_id: c.id,
         natural_description: c.naturalDescription,
-        severity: pickSeverity(cAny.severity),
+        severity: pickSeverity(c.severity ?? cAny.severity),
         improving_param: cType === 'TC' ? c.improvingParam : undefined,
         worsening_param: cType === 'TC' ? c.worseningParam : undefined,
         physical_contradiction: pcDesc,
@@ -281,6 +295,7 @@ export default function Create() {
       });
       setSolvingIds(prev => { const next = new Set(prev); next.delete(c.id); return next; });
       setLayeredSolutions(prev => ({ ...prev, [c.id]: resp.layered_solution }));
+      queryClient.invalidateQueries({ queryKey: queryKeys.layered_triz_solutions.byProject(id) });
       return [c.id, resp.layered_solution];
     } catch (err) {
       const desc = (c.naturalDescription || c.engineeringStatement || c.id).slice(0, 60);
@@ -646,8 +661,18 @@ export default function Create() {
     // WBS 7.4: use solveSingleContradiction helper (reused by per-row lazy solve).
     try {
       setLayeredSolutions({});
-      const results = await Promise.all(contrs.map(c => solveSingleContradiction(c)));
+      // Serialize per-contradiction solves so the backend isn't hit with 3× concurrent
+      // multi-step LLM pipelines (L1+critic+L2+L3+differential). Parallel fan-out
+      // caused /triz/solve-layered to exceed the 300s request timeout under load.
+      const results: Array<[string, LayeredTrizSolution] | null> = [];
+      for (const c of contrs) {
+        results.push(await solveSingleContradiction(c));
+      }
       const ok = results.filter(Boolean).length;
+      // Refresh the persisted layered_triz_solutions cache so that subsequent
+      // mounts / other tabs see the newly upserted rows without waiting for
+      // the default refetch window.
+      queryClient.invalidateQueries({ queryKey: queryKeys.layered_triz_solutions.byProject(id) });
       if (ok === 0) {
         toast.error('TRIZ 分層求解全部失敗');
       } else if (ok < contrs.length) {
@@ -849,6 +874,7 @@ export default function Create() {
         force_l2: true,
       });
       setLayeredSolutions((prev) => ({ ...prev, [c.id]: resp.layered_solution }));
+      queryClient.invalidateQueries({ queryKey: queryKeys.layered_triz_solutions.byProject(id) });
       toast.success(`已強制深挖 L2 for ${c.id}`);
     } catch (err) {
       console.error('force_l2 failed:', err);

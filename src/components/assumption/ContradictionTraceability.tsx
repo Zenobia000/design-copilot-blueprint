@@ -105,7 +105,7 @@ export function ContradictionTraceability({
         <div className="space-y-2">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
             <Sparkles className="h-3 w-3" />
-            索克拉底回饋
+            蘇格拉底回饋
           </h4>
           {socraticFeedback.length === 0 ? (
             <p className="text-xs text-muted-foreground">尚無 AI 回饋</p>

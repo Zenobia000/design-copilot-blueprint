@@ -45,6 +45,9 @@ export {
   useDeleteContradiction,
 } from './useContradictions';
 
+// TRIZ Layered Drill-Down persistence (migration 010)
+export { useLayeredTrizSolutions } from './useLayeredTrizSolutions';
+
 // --- Sprint 1.2: Assumptions + CLD ---
 export {
   useAssumptions,

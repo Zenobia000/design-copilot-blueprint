@@ -82,7 +82,7 @@ const SocraticPanel = ({ description, projectId, mission, constraints, existingQ
         <Button variant="outline" size="sm" className="w-full justify-between">
           <span className="flex items-center gap-1.5">
             <MessageCircleQuestion className="h-4 w-4" />
-            七類索克拉底提問輔助
+            七類蘇格拉底提問輔助
           </span>
           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </Button>

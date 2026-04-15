@@ -219,7 +219,7 @@ export function SocraticTab({ questions, onUpdateQuestions, onDeleteQuestion, is
       {/* Progress */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">索克拉底問答 — AI 引導式問題探索</h2>
+          <h2 className="text-lg font-semibold">蘇格拉底問答 — AI 引導式問題探索</h2>
           <Badge className="bg-blue-500 text-white text-xs">
             已回答 {answeredCount}/{totalCount}
           </Badge>

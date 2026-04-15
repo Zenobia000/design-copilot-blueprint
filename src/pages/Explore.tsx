@@ -505,7 +505,7 @@ export default function Explore() {
               <HelpTooltip text="此階段透過蘇格拉底式問答深入探索問題空間，識別設計中的矛盾，並建立因果迴路圖來視覺化變量關係。完成後即可進入下一階段。" className="ml-2 align-middle" />
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Step 1.2–1.3 · 索克拉底問答 → 矛盾識別 → 因果迴路圖
+              Step 1.2–1.3 · 蘇格拉底問答 → 矛盾識別 → 因果迴路圖
             </p>
           </div>
         </div>
@@ -515,7 +515,7 @@ export default function Explore() {
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="w-full grid grid-cols-3 h-11">
           <TabsTrigger value="socratic" className="text-xs sm:text-sm data-[state=active]:border-b-[3px] data-[state=active]:border-b-blue-500 rounded-none">
-            索克拉底問答
+            蘇格拉底問答
             <Badge variant="secondary" className="text-[10px] ml-1.5 hidden sm:inline-flex">
               {answeredCount}/{questions.length}
             </Badge>

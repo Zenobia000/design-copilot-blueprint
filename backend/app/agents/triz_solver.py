@@ -755,6 +755,7 @@ def solve_triz_layered(req: SolveTrizLayeredRequest) -> SolveTrizLayeredResponse
             differential_analysis=diff,
             phase_b_directive=PhaseBDirective(),  # defaults: intra-LTS skip, cross-contradiction check
         )
+        _persist_layered_solution(lts)
         emit_counter(
             "triz_layered_solved",
             severity=req.severity,
@@ -762,6 +763,34 @@ def solve_triz_layered(req: SolveTrizLayeredRequest) -> SolveTrizLayeredResponse
             quick_mode=str(req.quick_mode).lower(),
         )
         return SolveTrizLayeredResponse(layered_solution=lts)
+
+
+def _persist_layered_solution(lts: LayeredTrizSolution) -> None:
+    """Upsert LTS into layered_triz_solutions so the UI can rehydrate on page
+    reload and F2 subsystem discovery can read adopted LTS straight from DB.
+
+    Non-fatal: persistence failures are logged but do NOT abort the response —
+    the LLM work is expensive and we prefer to return it to the caller even if
+    the DB write loses (caller keeps in-memory state as a fallback).
+    """
+    from app.core.supabase import get_supabase  # local import: keep module importable in tests without Supabase
+    try:
+        sb = get_supabase()
+        payload = {
+            "id": lts.id,
+            "project_id": lts.project_id,
+            "contradiction_id": lts.contradiction_id,
+            "contradiction_natural_description": lts.contradiction_natural_description,
+            "severity": lts.severity,
+            "l1_surface": lts.l1_surface.model_dump(mode="json"),
+            "l2_root_cause": lts.l2_root_cause.model_dump(mode="json") if lts.l2_root_cause else None,
+            "l3_structural_check": lts.l3_structural_check.model_dump(mode="json"),
+            "differential_analysis": lts.differential_analysis.model_dump(mode="json"),
+            "phase_b_directive": lts.phase_b_directive.model_dump(mode="json"),
+        }
+        sb.table("layered_triz_solutions").upsert(payload, on_conflict="id").execute()
+    except Exception as exc:
+        logger.warning("persist layered_triz_solution failed for %s: %s", lts.id, exc)
 
 
 def _resolve_spatial_via_layers(

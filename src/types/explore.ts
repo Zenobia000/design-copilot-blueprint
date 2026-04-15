@@ -28,10 +28,17 @@ export const CATEGORY_CONFIG: Record<QuestionCategory, { label: string; labelZh:
 export type ContradictionType = 'TC' | 'PC' | 'SF';
 export type ContradictionStatus = 'draft' | 'confirmed' | 'rejected';
 
+// Mirror of contradictions.severity — feeds TRIZ L2 trigger rule
+// (`severity ∈ {fatal, major}` → auto-deepen; `minor` + quick_mode → skip).
+// Keep in sync with ContradictionSeverity in types/contradiction.ts.
+export type ExploreContradictionSeverity = 'fatal' | 'major' | 'minor';
+
 export interface ExploreContradiction {
   id: string;
   projectId: string;
   type: ContradictionType;
+  /** RD-annotated severity. Drives TRIZ L2 auto-trigger (fatal/major → deepen). */
+  severity?: ExploreContradictionSeverity;
   improvingParam: number | null;
   worseningParam: number | null;
   pcAttributeA: string | null;

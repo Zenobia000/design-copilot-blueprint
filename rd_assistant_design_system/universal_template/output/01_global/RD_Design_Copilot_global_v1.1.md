@@ -15,7 +15,7 @@
 - **核心價值主張**：在產品開發早期階段，協助 RD 團隊結構化發散、嚴格收斂、最小驗證，降低高昂返工成本，並使設計決策可審查、可追溯、可複用。
 - **主要任務流**：
   1. 建立專案：上傳多模態素材 (PDF/圖片/Excel/規格書) + AI 自動約束提取 + 約束可行性驗證 (Gate 1)
-  2. 定義問題：任務定義、假設台帳、矛盾識別 (七類索克拉底提問，含「重構 Reframing」)
+  2. 定義問題：任務定義、假設台帳、矛盾識別 (七類蘇格拉底提問，含「重構 Reframing」)
   3. 矛盾收斂：DAG-based 矛盾收斂圖 (Contradiction Convergence Graph)，矛盾嚴重度分級 (Fatal/Major/Minor)，架構健康監控 (nodes>5 強制停止, circular→重構)
   4. 發散方案：方案探索、Pre-CAD 審查 (Pre-CAD Confidence Score: Fatal+Major 需 100% 解決於 Gate P)
   5. 收斂決策：設計審查、決策記錄
@@ -135,7 +135,7 @@
 - 當前版本：v1.1
 - 最後更新：2026-03-12
 - 變更紀錄：
-  - v1.1 - 對齊 E2E 架構：多模態素材上傳與 AI 約束提取 (PRD F1.7)、約束可行性驗證 Gate 1 (PRD F1.8)、七類索克拉底提問 (含重構)、DAG-based 矛盾收斂圖、矛盾嚴重度分級、架構健康監控、Pre-CAD Confidence Score、AI 主動挑戰者角色
+  - v1.1 - 對齊 E2E 架構：多模態素材上傳與 AI 約束提取 (PRD F1.7)、約束可行性驗證 Gate 1 (PRD F1.8)、七類蘇格拉底提問 (含重構)、DAG-based 矛盾收斂圖、矛盾嚴重度分級、架構健康監控、Pre-CAD Confidence Score、AI 主動挑戰者角色
   - v1.0 - 初版建立
 
 **使用說明**：

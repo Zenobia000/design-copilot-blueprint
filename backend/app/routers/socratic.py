@@ -1,6 +1,6 @@
 """Socratic Questions: 7-category questioning for assumption/contradiction discovery.
 
-SOW Module: 索克拉底問答 (questions)
+SOW Module: 蘇格拉底問答 (questions)
 """
 
 from fastapi import APIRouter

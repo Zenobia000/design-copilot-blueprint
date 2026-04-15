@@ -209,6 +209,15 @@ export function useDeleteContradiction() {
         .eq('contradiction_id', vars.id);
       if (trizErr) throw trizErr;
 
+      // Drop the matching layered drill-down row (migration 010). Its
+      // contradiction_id is a TEXT FK-by-name without DB-level cascade.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- table added in migration 010, Supabase types not regenerated yet
+      const { error: ltsErr } = await (supabase as any)
+        .from('layered_triz_solutions')
+        .delete()
+        .eq('contradiction_id', vars.id);
+      if (ltsErr) throw ltsErr;
+
       const { error } = await supabase
         .from('contradictions')
         .delete()
@@ -218,6 +227,7 @@ export function useDeleteContradiction() {
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: queryKeys.contradictions.byProject(vars.projectId) });
       qc.invalidateQueries({ queryKey: queryKeys.triz_solutions.all });
+      qc.invalidateQueries({ queryKey: queryKeys.layered_triz_solutions.byProject(vars.projectId) });
       toast.success('矛盾及關聯 TRIZ 解法已刪除');
     },
     onError: (err) => {
