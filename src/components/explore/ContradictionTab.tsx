@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Check, Pencil, Trash2, Plus, AlertTriangle, Undo2 } from "lucide-react";
+import { Plus, AlertTriangle, Undo2 } from "lucide-react";
 import { AiButton } from "@/components/ui/ai-button";
 import { trizParameters } from "@/data/trizParameters";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +21,7 @@ import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { SectionIntro } from "@/components/ui/section-intro";
 import { useAiOperationGuard } from "@/hooks/useAiOperationGuard";
 import { DecomposedChildrenList } from "./DecomposedChildrenList";
+import { ContradictionDisplayCard } from "./ContradictionDisplayCard";
 
 interface ContradictionTabProps {
   contradictions: ExploreContradiction[];
@@ -66,20 +67,19 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
     [contradictions]
   );
 
-  const tcList = topLevelContradictions.filter((c) => c.type === 'TC');
-  const pcList = topLevelContradictions.filter((c) => c.type === 'PC');
-  const sfList = topLevelContradictions.filter((c) => c.type === 'SF');
-  const confirmedCount = contradictions.filter((c) => c.status === 'confirmed').length;
-
-  const getParamLabel = (paramId: number | null) => {
-    if (!paramId) return '—';
-    const p = trizParameters.find((t) => t.id === paramId);
-    return p ? `#${p.id} ${p.nameZh}` : '—';
-  };
+  const { tcList, pcList, sfList } = useMemo(() => ({
+    tcList: topLevelContradictions.filter((c) => c.type === 'TC'),
+    pcList: topLevelContradictions.filter((c) => c.type === 'PC'),
+    sfList: topLevelContradictions.filter((c) => c.type === 'SF'),
+  }), [topLevelContradictions]);
+  const confirmedCount = useMemo(
+    () => contradictions.filter((c) => c.status === 'confirmed').length,
+    [contradictions]
+  );
 
   // ── CRUD handlers ─────────────────────────────────────────────────────
 
-  const handleConfirm = async (id: string) => {
+  const handleConfirm = useCallback(async (id: string) => {
     const { error } = await supabase
       .from('contradictions')
       .update({ resolved: true, updated_at: new Date().toISOString() })
@@ -87,9 +87,9 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
     if (error) { toast.error(`確認失敗：${error.message}`); return; }
     invalidate();
     toast.success('矛盾已確認');
-  };
+  }, [invalidate]);
 
-  const handleRevertToDraft = async (id: string) => {
+  const handleRevertToDraft = useCallback(async (id: string) => {
     const { error } = await supabase
       .from('contradictions')
       .update({ resolved: false, updated_at: new Date().toISOString() })
@@ -98,12 +98,20 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
     setRevertConfirmId(null);
     invalidate();
     toast.info('已恢復為草稿狀態');
-  };
+  }, [invalidate]);
 
-  const handleStartEdit = (c: ExploreContradiction) => {
+  const handleStartEdit = useCallback((c: ExploreContradiction) => {
     setEditingId(c.id);
     setEditForm({ ...c });
-  };
+  }, []);
+
+  const handleRequestDelete = useCallback((id: string) => {
+    setDeleteConfirmId(id);
+  }, []);
+
+  const handleRequestRevert = useCallback((id: string) => {
+    setRevertConfirmId(id);
+  }, []);
 
   const handleSaveEdit = async () => {
     if (!editingId) return;
@@ -147,6 +155,7 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
     if (editForm.sfField !== undefined) updateData.sf_field = editForm.sfField;
     if (editForm.sfInteraction !== undefined) updateData.sf_interaction = editForm.sfInteraction;
     if (editForm.sfCompleteness !== undefined) updateData.sf_completeness = editForm.sfCompleteness;
+    if (editForm.severity !== undefined) updateData.severity = editForm.severity;
 
     const { error } = await supabase
       .from('contradictions')
@@ -182,6 +191,16 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
       .eq('contradiction_id', id);
     if (trizErr) { toast.error(`刪除關聯 TRIZ 解法失敗：${trizErr.message}`); return; }
 
+    // Drop the layered drill-down row (migration 010). The column is TEXT-typed
+    // contradiction_id (FK-by-name) with no DB-level cascade, so clean it
+    // manually to avoid orphan rows the UI would still hydrate on next mount.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- table added in migration 010, Supabase types not regenerated yet
+    const { error: ltsErr } = await (supabase as any)
+      .from('layered_triz_solutions')
+      .delete()
+      .eq('contradiction_id', id);
+    if (ltsErr) { toast.error(`刪除分層解法失敗：${ltsErr.message}`); return; }
+
     const { error } = await supabase
       .from('contradictions')
       .delete()
@@ -189,6 +208,7 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
     if (error) { toast.error(`刪除失敗：${error.message}`); return; }
     setDeleteConfirmId(null);
     invalidate();
+    qc.invalidateQueries({ queryKey: queryKeys.layered_triz_solutions.byProject(projectId) });
     toast.success('矛盾及關聯 TRIZ 解法已刪除');
   };
 
@@ -465,15 +485,23 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
 
   const renderCard = (c: ExploreContradiction) => {
     const isEditing = editingId === c.id;
-    const isConfirmed = c.status === 'confirmed';
 
+    if (!isEditing) {
+      return (
+        <ContradictionDisplayCard
+          contradiction={c}
+          onConfirm={handleConfirm}
+          onStartEdit={handleStartEdit}
+          onRequestDelete={handleRequestDelete}
+          onRequestRevert={handleRequestRevert}
+        />
+      );
+    }
+
+    // Edit mode — kept inline (only one card is editing at a time)
     return (
-      <Card
-        key={c.id}
-        className={`transition-colors ${isConfirmed ? 'border-l-[3px] border-l-green-600' : ''}`}
-      >
+      <Card key={c.id} className="transition-colors">
         <CardContent className="p-4 space-y-3">
-          {/* Badges */}
           <div className="flex items-center gap-2 flex-wrap">
             <Badge
               className="text-xs text-white"
@@ -481,17 +509,12 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
             >
               {c.type}
             </Badge>
-            {c.source === 'ai' && !isConfirmed && (
+            {c.source === 'ai' && (
               <Badge variant="secondary" className="text-[10px]">AI</Badge>
             )}
-            {isConfirmed && (
-              <Badge className="bg-green-600 text-white text-[10px]">已確認</Badge>
-            )}
           </div>
-
-          {isEditing ? (
-            /* Edit mode */
-            <div className="space-y-3">
+          {/* Edit form */}
+          <div className="space-y-3">
               {editForm.type === 'TC' ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -621,111 +644,28 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
                   maxLength={500}
                 />
               </div>
+              <div className="space-y-1">
+                <span className="text-xs text-muted-foreground">
+                  嚴重度{' '}
+                  <span className="text-[10px]">（fatal/major 會自動深挖 TRIZ L2；minor 在 quick_mode 下跳過 L2）</span>
+                </span>
+                <Select
+                  value={editForm.severity ?? 'minor'}
+                  onValueChange={(v) => setEditForm((f) => ({ ...f, severity: v as 'fatal' | 'major' | 'minor' }))}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fatal">致命 (fatal) — 必須解，阻斷主流程</SelectItem>
+                    <SelectItem value="major">重要 (major) — 影響關鍵 KPI</SelectItem>
+                    <SelectItem value="minor">輕微 (minor) — 次要影響</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex gap-2">
                 <Button size="sm" onClick={handleSaveEdit}>儲存</Button>
                 <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setEditForm({}); }}>取消</Button>
               </div>
             </div>
-          ) : (
-            /* Display mode */
-            <>
-              {/* Statement — shared by TC and PC */}
-              <p className="text-sm">{c.description}</p>
-
-              {/* Type-specific parameters */}
-              {c.type === 'TC' ? (
-                <div className="flex flex-wrap gap-2">
-                  <div className="bg-muted rounded px-2 py-1 text-xs">
-                    <span className="text-muted-foreground">改善: </span>
-                    <span className="font-medium">{getParamLabel(c.improvingParam)}</span>
-                  </div>
-                  <span className="text-muted-foreground text-xs self-center">→</span>
-                  <div className="bg-muted rounded px-2 py-1 text-xs">
-                    <span className="text-muted-foreground">惡化: </span>
-                    <span className="font-medium">{getParamLabel(c.worseningParam)}</span>
-                  </div>
-                </div>
-              ) : c.type === 'SF' ? (
-                c.sfSubstance1 ? (
-                  <div className="flex flex-wrap gap-2">
-                    <div className="bg-muted rounded px-2 py-1 text-xs">
-                      <span className="text-muted-foreground">S1: </span>
-                      <span className="font-medium">{c.sfSubstance1}</span>
-                    </div>
-                    <span className="text-muted-foreground text-xs self-center">⟶</span>
-                    <div className="bg-muted rounded px-2 py-1 text-xs">
-                      <span className="text-muted-foreground">F: </span>
-                      <span className="font-medium">{c.sfField || '—'}</span>
-                    </div>
-                    <span className="text-muted-foreground text-xs self-center">⟶</span>
-                    <div className="bg-muted rounded px-2 py-1 text-xs">
-                      <span className="text-muted-foreground">S2: </span>
-                      <span className="font-medium">{c.sfSubstance2 || '—'}</span>
-                    </div>
-                    {c.sfInteraction && (
-                      <Badge variant="outline" className="text-[10px]">{c.sfInteraction}</Badge>
-                    )}
-                    {c.sfCompleteness && (
-                      <Badge variant="outline" className="text-[10px]">{c.sfCompleteness}</Badge>
-                    )}
-                  </div>
-                ) : (
-                  <div className="bg-muted rounded px-2 py-1 text-xs text-muted-foreground">
-                    Su-Field 模型細節待補充 — 點擊上方「識別 SF」自動填入，或手動編輯 S1/F/S2
-                  </div>
-                )
-              ) : c.pcAttributeA && c.pcAttributeNotA ? (
-                /* Structured PC: user-defined A / non-A pair */
-                <div className="flex flex-wrap gap-2">
-                  <div className="bg-muted rounded px-2 py-1 text-xs">
-                    <span className="text-muted-foreground">需要: </span>
-                    <span className="font-medium">{c.pcAttributeA}</span>
-                  </div>
-                  <span className="text-muted-foreground text-xs self-center">⟷</span>
-                  <div className="bg-muted rounded px-2 py-1 text-xs">
-                    <span className="text-muted-foreground">同時需要: </span>
-                    <span className="font-medium">{c.pcAttributeNotA}</span>
-                  </div>
-                </div>
-              ) : c.pcAttributeA ? (
-                /* AI-generated PC: single descriptive text */
-                <div className="bg-muted rounded p-2 text-xs">
-                  <span className="text-muted-foreground">物理矛盾: </span>
-                  <span className="font-medium">{c.pcAttributeA}</span>
-                </div>
-              ) : (
-                <div className="bg-muted rounded px-2 py-1 text-xs text-muted-foreground">
-                  物理矛盾細節待補充 — 點擊上方「識別 PC」自動填入，或手動編輯
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex gap-2">
-                {!isConfirmed ? (
-                  <>
-                    <Button size="sm" onClick={() => handleConfirm(c.id)}>
-                      <Check className="h-3 w-3 mr-1" /> 確認 *
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleStartEdit(c)}>
-                      <Pencil className="h-3 w-3 mr-1" /> 編輯
-                    </Button>
-                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleteConfirmId(c.id)}>
-                      <Trash2 className="h-3 w-3 mr-1" /> 刪除
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button size="sm" variant="outline" onClick={() => setRevertConfirmId(c.id)}>
-                      <Undo2 className="h-3 w-3 mr-1" /> 撤回確認
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => handleStartEdit(c)}>
-                      <Pencil className="h-3 w-3 mr-1" /> 編輯
-                    </Button>
-                  </>
-                )}
-              </div>
-            </>
-          )}
         </CardContent>
       </Card>
     );
@@ -802,7 +742,7 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
     return (
       <div className="text-center py-16 space-y-3">
         <p className="text-muted-foreground font-medium">尚無矛盾</p>
-        <p className="text-sm text-muted-foreground">請先完成索克拉底問答，AI 將自動識別矛盾</p>
+        <p className="text-sm text-muted-foreground">請先完成蘇格拉底問答，AI 將自動識別矛盾</p>
         <div className="flex justify-center gap-3">
           <Button variant="ghost" onClick={() => setAddingType('TC')}>
             <Plus className="h-4 w-4 mr-1" /> 新增 TC
