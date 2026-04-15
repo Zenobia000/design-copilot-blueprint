@@ -111,10 +111,14 @@ const mapExploreContradictionRow = (r: ExploreContradictionRow): ExploreContradi
     || (r.natural_description && r.natural_description.trim())
     || '';
 
+  const sev: 'fatal' | 'major' | 'minor' =
+    r.severity === 'fatal' || r.severity === 'major' ? r.severity : 'minor';
+
   return {
     id: r.id,
     projectId: r.project_id,
     type: (r.type as ContradictionType) ?? 'TC',
+    severity: sev,
     improvingParam: r.improving_param,
     worseningParam: r.worsening_param,
     pcAttributeA: pcA,
@@ -294,22 +298,41 @@ export function useDeleteSocraticQuestion() {
 // Explore Contradictions hooks (uses the shared `contradictions` table)
 // =========================================================================
 
+// Columns the row mapper + UI actually consume (migration 009 decomposition
+// fields included). Dropping source_question_id/source_type (unused) shaves
+// payload; .range caps runaway projects at 200 rows — UI should paginate if
+// this ever truncates.
+const CONTRADICTION_COLUMNS = [
+  'id', 'project_id', 'type',
+  'improving_param', 'worsening_param',
+  'natural_description', 'physical_contradiction', 'engineering_statement',
+  'severity', 'resolved',
+  'sf_substance_1', 'sf_substance_2', 'sf_field', 'sf_interaction', 'sf_completeness',
+  'parent_contradiction_id', 'derived_parameter', 'subsystem_hint',
+  'separation_principle_id', 'separation_category', 'separation_rationale',
+  'pc_attribute_a', 'pc_attribute_not_a',
+  'created_at', 'updated_at',
+].join(',');
+
+const CONTRADICTION_ROW_CEILING = 200;
+
 export function useExploreContradictions(projectId: string | undefined) {
   return useQuery<ExploreContradiction[], Error>({
     queryKey: queryKeys.contradictions.byProject(projectId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('contradictions')
-        .select('*')
+        .select(CONTRADICTION_COLUMNS)
         .eq('project_id', projectId!)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: true })
+        .range(0, CONTRADICTION_ROW_CEILING - 1);
       if (error) throw error;
       return (data as ExploreContradictionRow[]).map(mapExploreContradictionRow);
     },
     enabled: !!projectId,
     ...defaultQueryOptions,
-    staleTime: 0,
-    refetchOnMount: 'always',
+    staleTime: 30_000,
+    gcTime: 10 * 60_000,
   });
 }
 

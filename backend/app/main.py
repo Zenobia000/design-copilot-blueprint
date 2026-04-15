@@ -17,7 +17,7 @@ from app.routers import (
     brief, socratic, cld, anti_anchor, triz, scamper,
     risk, action, convergence, must,
     contradictions, assumptions, pre_cad, want, gates, exports, knowledge_wb,
-    validation, unknown_factors, spatial,
+    validation, unknown_factors, spatial, observability,
 )
 
 
@@ -65,7 +65,7 @@ API_PREFIX = "/api/v1"
 
 # Register routers — aligned with SOW module naming
 app.include_router(brief.router, prefix=API_PREFIX, tags=["任務定義 definitions"], dependencies=_auth)
-app.include_router(socratic.router, prefix=API_PREFIX, tags=["索克拉底問答 questions"], dependencies=_auth)
+app.include_router(socratic.router, prefix=API_PREFIX, tags=["蘇格拉底問答 questions"], dependencies=_auth)
 app.include_router(cld.router, prefix=API_PREFIX, tags=["因果迴路 causal-loops"], dependencies=_auth)
 app.include_router(contradictions.router, prefix=API_PREFIX, tags=["矛盾管理 contradictions"], dependencies=_auth)
 app.include_router(assumptions.router, prefix=API_PREFIX, tags=["假設台帳 assumptions"], dependencies=_auth)
@@ -84,6 +84,8 @@ app.include_router(knowledge_wb.router, prefix=API_PREFIX, tags=["知識回寫 k
 app.include_router(validation.router, prefix=API_PREFIX, tags=["驗證護照 validation"], dependencies=_auth)
 app.include_router(unknown_factors.router, prefix=API_PREFIX, tags=["未知集合 unknown-factors"], dependencies=_auth)
 app.include_router(spatial.router, prefix=API_PREFIX, tags=["空間查找 spatial"], dependencies=_auth)
+# Web Vitals beacon — no auth: sendBeacon can't reliably attach auth headers.
+app.include_router(observability.router, prefix=API_PREFIX, tags=["observability"])
 
 
 @app.get(f"{API_PREFIX}/health")
