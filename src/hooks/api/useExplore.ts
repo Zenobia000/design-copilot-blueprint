@@ -298,22 +298,9 @@ export function useDeleteSocraticQuestion() {
 // Explore Contradictions hooks (uses the shared `contradictions` table)
 // =========================================================================
 
-// Columns the row mapper + UI actually consume (migration 009 decomposition
-// fields included). Dropping source_question_id/source_type (unused) shaves
-// payload; .range caps runaway projects at 200 rows — UI should paginate if
-// this ever truncates.
-const CONTRADICTION_COLUMNS = [
-  'id', 'project_id', 'type',
-  'improving_param', 'worsening_param',
-  'natural_description', 'physical_contradiction', 'engineering_statement',
-  'severity', 'resolved',
-  'sf_substance_1', 'sf_substance_2', 'sf_field', 'sf_interaction', 'sf_completeness',
-  'parent_contradiction_id', 'derived_parameter', 'subsystem_hint',
-  'separation_principle_id', 'separation_category', 'separation_rationale',
-  'pc_attribute_a', 'pc_attribute_not_a',
-  'created_at', 'updated_at',
-].join(',');
-
+// Use select('*') — strict whitelist 400s on environments that haven't run
+// migrations 009/010 (parent_contradiction_id et al). Supabase silently
+// omits missing columns under '*'. .range caps payload at 200 rows.
 const CONTRADICTION_ROW_CEILING = 200;
 
 export function useExploreContradictions(projectId: string | undefined) {
@@ -322,7 +309,7 @@ export function useExploreContradictions(projectId: string | undefined) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('contradictions')
-        .select(CONTRADICTION_COLUMNS)
+        .select('*')
         .eq('project_id', projectId!)
         .order('created_at', { ascending: true })
         .range(0, CONTRADICTION_ROW_CEILING - 1);
