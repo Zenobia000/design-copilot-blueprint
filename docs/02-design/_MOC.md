@@ -1,21 +1,39 @@
 # 02-design — What exactly do we build?
 
 > Gates: TR4-TR5
-> Last restructured: 2026-04-15 (5D alignment — flat specs reorganised by domain)
+> Last restructured: 2026-04-15 (VibeCoding 03/06/07/08/09/10/12/17 模板對齊)
 
-## 頂層架構文檔 (TR4 Gate 主文檔)
+## Gate 主檔 (TR4 Gate 核心)
 
-- **[E5--system-design-overview](E5--system-design-overview.md)** — 系統設計總覽（IA↔API 對應、specs 導航、TR4 gate 條件）
+- **[E5--api-design-specification](E5--api-design-specification.md)** — API Design Specification（取代舊 E5；VibeCoding 06）
+- [E5x--system-design-overview](E5x--system-design-overview.md) — 系統設計總覽（IA↔API 對應、specs 導航、TR4 gate 條件）
 
-## Workflow & BDD
+## IA + Frontend
 
+- [E5x--frontend-architecture](E5x--frontend-architecture.md) — 前端架構規格 (VibeCoding 12)
+- [E5x--frontend-information-architecture](E5x--frontend-information-architecture.md) — 前端資訊架構 / 網站地圖 (VibeCoding 17)
+- [specs/ux/E5x--create-ux-spec](specs/ux/E5x--create-ux-spec.md) — Create 頁完整 UX 規格 (Tab ①–④)
+
+## BDD + 工程規範
+
+- [E5x--bdd-scenarios](E5x--bdd-scenarios.md) — BDD 情境 (Gherkin；VibeCoding 03)
+- [E5x--project-structure-guide](E5x--project-structure-guide.md) — 專案結構指南 (VibeCoding 08)
 - [E6x--schema-codegen-workflow](E6x--schema-codegen-workflow.md) — Schema Codegen Workflow (Pydantic → TS)
 - [E7x--e2e-manual-scripts/](E7x--e2e-manual-scripts/) — E2E 手測腳本
 
-## Specs — 依領域分組
+## Specs — 跨領域結構分析
 
-### UX / Information Architecture
-- [specs/ux/E5x--create-ux-spec](specs/ux/E5x--create-ux-spec.md) — Create 頁面完整 UX 規格 (Tab ①–④)
+- [specs/E5x--file-dependencies](specs/E5x--file-dependencies.md) — 檔案/模組依賴 + Mermaid 圖 (VibeCoding 09)
+- [specs/E5x--class-relationships](specs/E5x--class-relationships.md) — 類別關係 + Pydantic/TS 圖 (VibeCoding 10)
+
+## Specs — 模組規格 (VibeCoding 07)
+
+- [specs/modules/E5x--module-spec-index](specs/modules/E5x--module-spec-index.md) — 模組清單（Agent/Service/Router/Hook）
+  - Pilot 1: [`triz-solver`](specs/modules/triz-solver.md) — Forward TRIZ 分層解矛盾
+  - Pilot 2: [`anti-anchor`](specs/modules/anti-anchor.md) — 反向路線生成
+  - Pilot 3: [`subsystem-decomposer`](specs/modules/subsystem-decomposer.md) — 子系統分解 + 介面契約
+
+## Specs — 依領域分組
 
 ### TRIZ 解矛盾子系統
 - [specs/triz/E5x--triz-layered-drilldown-optimization](specs/triz/E5x--triz-layered-drilldown-optimization.md) — 分層 Drill-Down 架構優化 (L1/L2/L3)
@@ -36,13 +54,16 @@
 **WBS 任務分解** 已統一歸檔至 DEFINE 階段：
 - [01-define/E3x--wbs-development-plan](../01-define/E3x--wbs-development-plan.md) — 主 WBS (WS-A/B/C release axis)
 - [01-define/E3x--wbs-development-plan-addendum](../01-define/E3x--wbs-development-plan-addendum.md) — Addendum (WS-D..H feature axis)
-  - WS-D TRIZ 分層開發 / WS-E 子系統介面 / WS-F TC→多 PC / WS-G L3 SF / WS-H Playwright E2E
 
-## VibeCoding 模板對齊
+## VibeCoding 模板對齊總表
 
-| Template | 對應 |
-|----------|------|
-| 06 API Design | `E5--system-design-overview.md` §2-3 |
-| 07 Module Spec | `specs/triz/*` + `specs/explore/*` |
-| 12 Frontend Arch | `specs/ux/E5x--create-ux-spec.md` |
-| 17 Frontend IA | `specs/ux/E5x--create-ux-spec.md` (Tab 結構) |
+| Template | 對應 02-design 文件 | 狀態 |
+|----------|---------------------|------|
+| 03 BDD Guide | `E5x--bdd-scenarios.md` | Active |
+| 06 API Design | `E5--api-design-specification.md` | Active |
+| 07 Module Spec & Tests | `specs/modules/E5x--module-spec-index.md` + 3 pilots | Active |
+| 08 Project Structure | `E5x--project-structure-guide.md` | Active |
+| 09 File Dependencies | `specs/E5x--file-dependencies.md` | Active |
+| 10 Class Relationships | `specs/E5x--class-relationships.md` | Active |
+| 12 Frontend Architecture | `E5x--frontend-architecture.md` + `specs/ux/E5x--create-ux-spec.md` | Active |
+| 17 Frontend IA | `E5x--frontend-information-architecture.md` | Active |

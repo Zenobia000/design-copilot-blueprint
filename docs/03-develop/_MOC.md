@@ -9,6 +9,10 @@
 | GR6  | GR6--code-complete (TBD) | Template |
 | GR7  | GR7--integration (TBD) | Template |
 
+## Guides
+
+- [GR6x--code-review-guide](GR6x--code-review-guide.md) — Code Review & Refactoring Guide (Active)
+
 ## Migrations
 
 - [001_add_must_criteria_config.sql](migrations/001_add_must_criteria_config.sql)

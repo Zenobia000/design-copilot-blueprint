@@ -8,6 +8,14 @@
 |-------|----------|--------|
 | GR10  | GR10--ga-readiness (TBD) | Template |
 
+## Essential Documents
+
+| #   | Document | Status |
+|-----|----------|--------|
+| E8  | [E8--security-and-readiness-checklists](E8--security-and-readiness-checklists.md) | Draft |
+| E9  | [E9--deployment-and-operations-guide](E9--deployment-and-operations-guide.md) | Draft |
+| E9x | [E9x--documentation-maintenance-guide](E9x--documentation-maintenance-guide.md) | Draft |
+
 ## User Documentation
 
 - [E9x--user-manual-v0.1](E9x--user-manual-v0.1.md) — 使用者手冊 v0.1 ← from 00-discover

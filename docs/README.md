@@ -17,13 +17,13 @@ TR0  TR1       TR2  TR3      TR4  TR5       TR6    TR7        TR8  TR9  TR10
 | E2   | TR2  | [01-define/E2--statement-of-work](01-define/E2--statement-of-work.md) + [01-define/adrs/](01-define/adrs/) | Approved |
 | E3   | TR3  | [01-define/E3--architecture-and-design](01-define/E3--architecture-and-design.md) | Approved |
 | E4   | TR3  | 01-define/diagrams/E4--06_erd (TBD) | Planned |
-| E5   | TR4  | [02-design/E5--system-design-overview](02-design/E5--system-design-overview.md) | Active |
+| E5   | TR4  | [02-design/E5--api-design-specification](02-design/E5--api-design-specification.md) + [E5x--system-design-overview](02-design/E5x--system-design-overview.md) | Active |
 | E6   | TR5  | [02-design/E6x--schema-codegen-workflow](02-design/E6x--schema-codegen-workflow.md) | Active |
 | E7   | TR5  | [02-design/E7x--e2e-manual-scripts/](02-design/E7x--e2e-manual-scripts/) | Active |
 | GR6  | TR6  | 03-develop/GR6--code-complete (TBD) | Template |
 | GR7  | TR7  | 03-develop/GR7--integration (TBD) | Template |
-| E8   | TR8  | 04-deliver/E8--security-and-readiness-checklists (TBD) | Planned |
-| E9   | TR9  | 04-deliver/E9--deployment-and-operations-guide (TBD) | Draft |
+| E8   | TR8  | [04-deliver/E8--security-and-readiness-checklists](04-deliver/E8--security-and-readiness-checklists.md) | Draft |
+| E9   | TR9  | [04-deliver/E9--deployment-and-operations-guide](04-deliver/E9--deployment-and-operations-guide.md) | Draft |
 | GR10 | TR10 | 04-deliver/GR10--ga-readiness (TBD) | Template |
 
 ## The 5D Phases
@@ -40,7 +40,7 @@ TR0  TR1       TR2  TR3      TR4  TR5       TR6    TR7        TR8  TR9  TR10
 
 | Zone | Purpose |
 |------|---------|
-| [_domain-knowledge/](_domain-knowledge/_MOC.md) | RD 設計方法論專業知識 (SCAMPER, TRIZ, KT) |
+| [_domain-knowledge/](_domain-knowledge/_MOC.md) | RD 設計方法論專業知識 (SCAMPER, TRIZ, KT) + VibeCoding 工作流程手冊落地版（[VC00](_domain-knowledge/VC00--workflow-manual.md) / [VC01](_domain-knowledge/VC01--development-workflow-cookbook.md)） |
 | [_gap-analysis/](_gap-analysis/) | 缺口分析 vs 投資人/合約需求 |
 | [_meeting-minutes/](_meeting-minutes/) | 會議決策紀錄 |
 | [_superseded/](_superseded/_MOC.md) | 已被取代的文件版本 |
@@ -84,6 +84,29 @@ _gap-analysis <--- validates all zones
 
 ### Path D: Understanding the Domain
 1. [_domain-knowledge/](_domain-knowledge/_MOC.md) — 方法論知識庫
+
+## VibeCoding Template Coverage (18/18)
+
+| # | Template | Project Doc |
+|---|----------|-------------|
+| 00 | workflow_manual | [_domain-knowledge/VC00--workflow-manual](_domain-knowledge/VC00--workflow-manual.md) |
+| 01 | development_workflow_cookbook | [_domain-knowledge/VC01--development-workflow-cookbook](_domain-knowledge/VC01--development-workflow-cookbook.md) |
+| 02 | project_brief_and_prd | [00-discover/E1--project-brief-and-prd](00-discover/E1--project-brief-and-prd.md) |
+| 03 | bdd_guide | [02-design/E5x--bdd-scenarios](02-design/E5x--bdd-scenarios.md) |
+| 04 | adr_template | [01-define/adrs/](01-define/adrs/) |
+| 05 | architecture_and_design | [01-define/E3--architecture-and-design](01-define/E3--architecture-and-design.md) |
+| 06 | api_design_specification | [02-design/E5--api-design-specification](02-design/E5--api-design-specification.md) |
+| 07 | module_specification_and_tests | [02-design/specs/modules/](02-design/specs/modules/E5x--module-spec-index.md) |
+| 08 | project_structure_guide | [02-design/E5x--project-structure-guide](02-design/E5x--project-structure-guide.md) |
+| 09 | file_dependencies | [02-design/specs/E5x--file-dependencies](02-design/specs/E5x--file-dependencies.md) |
+| 10 | class_relationships | [02-design/specs/E5x--class-relationships](02-design/specs/E5x--class-relationships.md) |
+| 11 | code_review_and_refactoring | [03-develop/GR6x--code-review-guide](03-develop/GR6x--code-review-guide.md) |
+| 12 | frontend_architecture | [02-design/E5x--frontend-architecture](02-design/E5x--frontend-architecture.md) |
+| 13 | security_and_readiness_checklists | [04-deliver/E8--security-and-readiness-checklists](04-deliver/E8--security-and-readiness-checklists.md) |
+| 14 | deployment_and_operations | [04-deliver/E9--deployment-and-operations-guide](04-deliver/E9--deployment-and-operations-guide.md) |
+| 15 | documentation_and_maintenance | [04-deliver/E9x--documentation-maintenance-guide](04-deliver/E9x--documentation-maintenance-guide.md) |
+| 16 | wbs_development_plan | [01-define/E3x--wbs-development-plan](01-define/E3x--wbs-development-plan.md) |
+| 17 | frontend_information_architecture | [02-design/E5x--frontend-information-architecture](02-design/E5x--frontend-information-architecture.md) |
 
 ## Document Status Legend
 
