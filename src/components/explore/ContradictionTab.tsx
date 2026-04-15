@@ -378,39 +378,43 @@ export function ContradictionTab({ contradictions, onUpdateContradictions, hasAn
       );
 
       if (targets.length > 0) {
-        let count = 0;
-        let totalDecomposed = 0;
-        for (const c of targets) {
-          try {
-            const result = await contradictionFormalize({
-              project_id: projectId,
-              contradiction_id: c.id,
-              natural_description: c.description,
-              mission, constraints, kpis, socraticAnswers,
-            });
-            await supabase
-              .from('contradictions')
-              .update({
-                type: result.type,
-                improving_param: result.improving_param,
-                worsening_param: result.worsening_param,
-                engineering_statement: result.engineering_statement,
-                physical_contradiction: result.pc_attribute_a && result.pc_attribute_not_a
-                  ? `${result.pc_attribute_a} | ${result.pc_attribute_not_a}`
-                  : result.physical_contradiction,
-                sf_substance_1: result.sf_substance_1,
-                sf_substance_2: result.sf_substance_2,
-                sf_field: result.sf_field,
-                sf_interaction: result.sf_interaction,
-                sf_completeness: result.sf_completeness,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', c.id);
-            count++;
-            // L2 WBS 5.2-5.5 — auto PC decomposition for TC results
-            totalDecomposed += await maybeAutoDecomposeTC(c.id, result);
-          } catch { /* continue */ }
-        }
+        // Parallelize per-target formalize + update + decompose. Each target
+        // is independent; failures are isolated via Promise.allSettled so one
+        // LLM error doesn't cancel siblings. Previous sequential loop made
+        // N targets pay N× the formalize latency.
+        const processOne = async (c: ExploreContradiction): Promise<number> => {
+          const result = await contradictionFormalize({
+            project_id: projectId,
+            contradiction_id: c.id,
+            natural_description: c.description,
+            mission, constraints, kpis, socraticAnswers,
+          });
+          await supabase
+            .from('contradictions')
+            .update({
+              type: result.type,
+              improving_param: result.improving_param,
+              worsening_param: result.worsening_param,
+              engineering_statement: result.engineering_statement,
+              physical_contradiction: result.pc_attribute_a && result.pc_attribute_not_a
+                ? `${result.pc_attribute_a} | ${result.pc_attribute_not_a}`
+                : result.physical_contradiction,
+              sf_substance_1: result.sf_substance_1,
+              sf_substance_2: result.sf_substance_2,
+              sf_field: result.sf_field,
+              sf_interaction: result.sf_interaction,
+              sf_completeness: result.sf_completeness,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', c.id);
+          return await maybeAutoDecomposeTC(c.id, result);
+        };
+        const results = await Promise.allSettled(targets.map(processOne));
+        const count = results.filter((r) => r.status === 'fulfilled').length;
+        const totalDecomposed = results.reduce(
+          (sum, r) => sum + (r.status === 'fulfilled' ? r.value : 0),
+          0,
+        );
         invalidate();
         toast.success(`AI 已形式化 ${count} 個 ${type} 矛盾`);
         if (totalDecomposed > 0) {
