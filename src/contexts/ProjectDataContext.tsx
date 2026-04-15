@@ -3,7 +3,7 @@
  * Unified context for cross-step data sharing.
  * Replaces per-page mock data imports with a central store.
  */
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import type { SocraticQuestion, ExploreContradiction, CausalLoop } from '@/types/explore';
 import type { TrackAssumption, UnknownFactor } from '@/types/track';
 import type { Alternative } from '@/types/create';
@@ -34,16 +34,19 @@ export function ProjectDataProvider({ projectId, children }: { projectId: string
   const [unknownFactors, setUnknownFactors] = useState<UnknownFactor[]>([]);
   const [alternatives, setAlternatives] = useState<Alternative[]>([]);
 
+  const value = useMemo<ProjectData>(
+    () => ({
+      projectId,
+      questions, contradictions, causalLoop,
+      assumptions, unknownFactors, alternatives,
+      setQuestions, setContradictions, setCausalLoop,
+      setAssumptions, setUnknownFactors, setAlternatives,
+    }),
+    [projectId, questions, contradictions, causalLoop, assumptions, unknownFactors, alternatives],
+  );
+
   return (
-    <ProjectDataContext.Provider
-      value={{
-        projectId,
-        questions, contradictions, causalLoop,
-        assumptions, unknownFactors, alternatives,
-        setQuestions, setContradictions, setCausalLoop,
-        setAssumptions, setUnknownFactors, setAlternatives,
-      }}
-    >
+    <ProjectDataContext.Provider value={value}>
       {children}
     </ProjectDataContext.Provider>
   );

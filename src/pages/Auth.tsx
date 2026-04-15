@@ -58,7 +58,7 @@ export default function Auth() {
       <div className="w-full max-w-sm space-y-8">
         {/* Logo */}
         <div className="text-center space-y-3">
-          <img src={logoImg} alt="RD Design Copilot" className="h-14 w-14 rounded-2xl mx-auto shadow-card" />
+          <img src={logoImg} alt="RD Design Copilot" width={56} height={56} decoding="async" className="h-14 w-14 rounded-2xl mx-auto shadow-card" />
           <div>
             <h1 className="text-2xl font-bold tracking-tight">RD Design Copilot</h1>
             <p className="text-sm text-muted-foreground mt-1">
