@@ -28,7 +28,7 @@
 │  │                     方法論工具箱                             ││
 │  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐          ││
 │  │  │ 5W1H    │ │AutoTRIZ │ │ SCAMPER │ │ KT DA   │          ││
-│  │  │ 索克拉底│ │ 混合架構│ │ 變形    │ │ 決策    │          ││
+│  │  │ 蘇格拉底│ │ 混合架構│ │ 變形    │ │ 決策    │          ││
 │  │  └─────────┘ └─────────┘ └─────────┘ └─────────┘          ││
 │  └─────────────────────────────────────────────────────────────┘│
 │                              ↑                                   │
@@ -47,14 +47,14 @@
 | 功能編號 | 功能名稱 | 優先級 | 描述 | 對應 Step |
 |---------|---------|--------|------|----------|
 | **F1.1** | 任務定義表生成 | P0 | 基於需求輸入（含多模態素材上傳），生成結構化任務定義表（Mission/Hard/Soft/Non-goals） | Step 1 |
-| **F1.2** | 索克拉底問答 | P0 | 自動產出 6 類提問（澄清/假設/證據/觀點/後果/反思） | Step 2 |
+| **F1.2** | 蘇格拉底問答 | P0 | 自動產出 6 類提問（澄清/假設/證據/觀點/後果/反思） | Step 2 |
 | **F1.3** | 矛盾識別 | P0 | 從對話中識別「改善 A 惡化 B」的矛盾，輸出 TRIZ 句式 | Step 2-3 |
 | **F1.4** | 因果迴路圖生成 | P1 | 自動繪製熱-機-振耦合關係圖，標示斷路點 | Step 3 |
 | **F1.5** | Gate 1-3 檢查 | P0 | 驗證各 Gate 通過條件（三指標、**約束可行性驗證**、矛盾句、斷路點） | Step 1-3 |
 | **F1.6** | 知識增強注入 (Phase I) | P1 | RAG 檢索歷史案例/規範，Web 搜尋產業基準/法規 | Step 1-3 |
 | **F1.7** | 多模態素材解讀與結構化提取 | P0 | 用戶上傳 PDF/圖片/Excel/規格書/測試報告/競品拆解報告，AI 自動提取約束、假設、歷史數據、矛盾線索，預填 Constraint 表和 Assumption Ledger | Step 1 |
 | **F1.8** | 約束可行性驗證 (Constraint Feasibility Check) | P0 | AI 主動驗證所有硬約束是否在物理上可同時滿足（量綱分析、功率密度、散熱極限、歷史產品比對）。不可能 → 打住要求重新定義；邊界可行 → 預警繼續 | Step 1 |
-| **F1.9** | 問題框架挑戰 (Problem Reframing) | P0 | 索克拉底第七類「重構」提問：質疑問題本身是否被正確框架、前提是否被不當鎖定、約束是否可刪除簡化 | Step 2 |
+| **F1.9** | 問題框架挑戰 (Problem Reframing) | P0 | 蘇格拉底第七類「重構」提問：質疑問題本身是否被正確框架、前提是否被不當鎖定、約束是否可刪除簡化 | Step 2 |
 
 #### Phase II: 假設與發散 (Step 4-5, Step P)
 
@@ -71,8 +71,8 @@
 | **F2.9** | Gate 4, Gate P 檢查 | P0 | 驗證各 Gate 通過條件 | Step 4, P |
 | **F2.10** | 知識增強注入 (Phase II) | P1 | RAG 檢索內部專利/歷史方案，Web 搜尋外部專利/新材料文獻 | Step 4-P |
 | **F2.11** | Validation Passport 生成 | P0 | 為每個候選方案（TRIZ、SCAMPER、Anti-Anchor、手動）生成自我宣告的驗證記錄：`assumptions[]`（含 content, category, evidence_level E0-E4, worst_consequence, worst_severity, suggested_experiment）、`weak_points[]`、`required_verifications[]`（優先排序）、`confidence_level`（0-1） | Step 5d |
-| **F2.12** | 索克拉底追問與深度分析 | P1 | 分析回答深度，自動生成後續追問 | Step 2 |
-| **F2.13** | Brief 變更影響評估 | P1 | 評估 Brief 變更對哪些索克拉底問題有影響 | Step 1-2 |
+| **F2.12** | 蘇格拉底追問與深度分析 | P1 | 分析回答深度，自動生成後續追問 | Step 2 |
+| **F2.13** | Brief 變更影響評估 | P1 | 評估 Brief 變更對哪些蘇格拉底問題有影響 | Step 1-2 |
 
 #### Phase III: 收斂與驗證 (Step 6-7)
 
@@ -224,7 +224,7 @@ KT_決策記錄:
 | AI 可以做 | AI 不可以做 |
 |----------|------------|
 | 生成任務定義表草稿 | 決定硬約束的值 |
-| 提出索克拉底提問 | 回答索克拉底提問 |
+| 提出蘇格拉底提問 | 回答蘇格拉底提問 |
 | 驗證約束可行性、質疑問題框架（重構提問）、識別矛盾、生成 TRIZ 解法、建立矛盾收斂圖、監控架構健康度（節點 > 5 強制暫停） | 判斷解法是否可行、確認矛盾分級、**回應 AI 的約束可行性質疑和問題重構提問** |
 | 生成 SCAMPER 變形建議 | 判斷變形是否有價值 |
 | 引導 Anti-Anchor Sprint | 決定保留哪條路線 |
@@ -298,7 +298,7 @@ KT_決策記錄:
 │                                                                  │
 │  ┌──────────────┐                                               │
 │  │ Phase I       │ Step 1: 定義問題 → Gate 1                    │
-│  │ 定義問題空間  │ Step 2: 索克拉底問答 → Gate 2                │
+│  │ 定義問題空間  │ Step 2: 蘇格拉底問答 → Gate 2                │
 │  │               │ Step 3: 系統建模 (CLD+TRIZ) → Gate 3        │
 │  └──────┬───────┘                                               │
 │         ↓                                                       │
@@ -327,7 +327,7 @@ KT_決策記錄:
 | 步驟 | 用戶動作 | 系統回應 | 核心工件 |
 |------|---------|---------|---------|
 | Step 1 | 建立專案，輸入需求 + 上傳素材 | 解讀素材 → 提取約束/假設 → 生成任務定義表草稿 | Constraint |
-| Step 2 | 回答索克拉底問題 | 識別矛盾，建立假設台帳 | Contradiction, Assumption |
+| Step 2 | 回答蘇格拉底問題 | 識別矛盾，建立假設台帳 | Contradiction, Assumption |
 | Step 3 | 確認因果迴路 | 正式化 TRIZ 矛盾句，標示斷路點 | Breakpoint |
 | Step 4 | 定義未知集合 | 建立假設台帳 v1 | Assumption (Verified) |
 | Step 5 | Anti-Anchor Sprint + MUST 快篩 | 產出 3-5 條方案路線 | Concept Route, Interface |
@@ -498,8 +498,8 @@ AlternativeSource: 'triz' | 'scamper' | 'anti_anchor' | 'manual'
 |--------|----------|------|----------|
 | POST | `/convergence/scan` | 收斂掃描：Phase A（矛盾空間健康度，Step 2 起）/ Phase B（方案×矛盾交叉檢查，Step 5 後自動觸發） | Step 2-5a |
 | POST | `/alternatives/validation-passport` | 為任意候選方案生成 Validation Passport | Step 5d |
-| POST | `/questions/follow-up` | 分析索克拉底回答深度，生成後續追問 | Step 2 |
-| POST | `/questions/brief-impact` | 評估 Brief 變更對哪些索克拉底問題有影響 | Step 1-2 |
+| POST | `/questions/follow-up` | 分析蘇格拉底回答深度，生成後續追問 | Step 2 |
+| POST | `/questions/brief-impact` | 評估 Brief 變更對哪些蘇格拉底問題有影響 | Step 1-2 |
 
 ### 9.4 Multi-Agent 架構
 
@@ -539,7 +539,7 @@ AlternativeSource: 'triz' | 'scamper' | 'anti_anchor' | 'manual'
 | 里程碑 | 時程 | 交付物 |
 |--------|------|--------|
 | **M1: 架構設計** | Week 1-2 | 技術架構文件、API 規格、雙層狀態機實作 |
-| **M2: Phase I 功能** | Week 3-6 | 任務定義、索克拉底、矛盾識別、因果迴路 |
+| **M2: Phase I 功能** | Week 3-6 | 任務定義、蘇格拉底、矛盾識別、因果迴路 |
 | **M3: Phase II 功能** | Week 7-10 | Anti-Anchor Sprint、AutoTRIZ、SCAMPER、MUST 快篩、Pre-CAD Review |
 | **M4: Phase III 功能** | Week 11-14 | Evidence Matrix、Gate C、KT 決策、證據補齊迴圈 |
 | **M5: 整合測試** | Week 15-16 | 端到端測試、UAT |

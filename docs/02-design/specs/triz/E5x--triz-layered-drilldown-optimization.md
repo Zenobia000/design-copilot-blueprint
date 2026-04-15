@@ -627,6 +627,20 @@ def phase_b_check_conflict(sol_a, sol_b):
 - 矛盾 severity 標記為 `fatal` 或 `major` → 預設跑 L1+L2+L3 完整分層
 - 標記為 `minor` → 預設只跑 L1 + L3（L3 便宜且不會錯過結構盲點）
 
+**UI 對應**（2026-04-15 補實作）：
+
+- **severity 編輯**：ContradictionTab 的每張矛盾卡片在編輯模式顯示 `致命 / 重要 / 輕微` 三選一下拉，非編輯模式以 badge（紅 / 橘 / 灰）呈現。值直接寫回 `contradictions.severity` 欄位。
+- **quick_mode**：Create 頁 TRIZ 區塊右上角 checkbox「quick_mode（minor 跳 L2）」，對整個 project 的本次分層求解生效。
+- **force_l2**：LayeredSolutionCard 上的「🔽 深挖 L2」按鈕，對單一矛盾強制觸發 L2（呼叫 `trizSolveLayered` 時帶 `force_l2=true`）。
+- 三個旗標在 `_should_trigger_l2`（triz_solver.py:660）依「quick_mode → force_l2 → severity → critic」的優先序決定 L2 是否執行。
+
+**持久化（2026-04-15 補實作）**：
+
+- 後端 `solve_triz_layered`（triz_solver.py）回傳 LayeredTrizSolution 前會呼叫 `_persist_layered_solution`，透過 Supabase service client `upsert` 到 `layered_triz_solutions` 表，`id` 作為 primary key（`LTS-<contradiction_id>`），同矛盾重算自動覆蓋。
+- 寫入失敗不中斷 API 回應，僅記 warning log（昂貴的 LLM 結果優先保全到前端）。
+- 前端 `useLayeredTrizSolutions(projectId)` hook（src/hooks/api/useLayeredTrizSolutions.ts）在 Create 頁掛載時 `SELECT *` 拉回整個專案的 LTS，hydrate 到 `layeredSolutions` state，解決「換頁資料不見」問題。
+- 矛盾被刪除時（ContradictionTab 與 useDeleteContradiction），會連帶刪除同 `contradiction_id` 的 LTS 列，避免孤兒資料。
+
 ---
 
 ## §11 驗證方式

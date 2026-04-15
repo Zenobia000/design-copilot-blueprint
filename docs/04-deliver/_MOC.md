@@ -6,7 +6,7 @@
 
 | #     | Document | Status |
 |-------|----------|--------|
-| GR10  | GR10--ga-readiness (TBD) | Template |
+| GR10  | [GR10--ga-readiness](GR10--ga-readiness.md) (v1.0, 2026-04-15) — Security AI-01..15 / Deploy / Observability / Support / Docs / Legal / GA decision | Draft |
 
 ## Essential Documents
 

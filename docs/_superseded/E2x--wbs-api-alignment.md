@@ -29,10 +29,10 @@
 | 4 | POST | `/api/v1/definitions/suggest-constraints` | 任務定義 | ✅ 完整實作 |
 | 5 | POST | `/api/v1/definitions/suggest-kpis` | 任務定義 | ✅ 完整實作 |
 | 6 | POST | `/api/v1/definitions/generate-5w1h` | 任務定義 | ✅ 完整實作 |
-| 7 | POST | `/api/v1/questions/generate` | 索克拉底問答 | ✅ 完整實作 |
-| 8 | POST | `/api/v1/questions/follow-up` | 索克拉底問答 | ✅ 新增（追問鏈）|
-| 9 | POST | `/api/v1/questions/brief-impact` | 索克拉底問答 | ✅ 新增（回答 → Brief 影響分析）|
-| 10 | POST | `/api/v1/questions/auto-tag` | 索克拉底問答 | ✅ 新增（自動標記假設/矛盾）|
+| 7 | POST | `/api/v1/questions/generate` | 蘇格拉底問答 | ✅ 完整實作 |
+| 8 | POST | `/api/v1/questions/follow-up` | 蘇格拉底問答 | ✅ 新增（追問鏈）|
+| 9 | POST | `/api/v1/questions/brief-impact` | 蘇格拉底問答 | ✅ 新增（回答 → Brief 影響分析）|
+| 10 | POST | `/api/v1/questions/auto-tag` | 蘇格拉底問答 | ✅ 新增（自動標記假設/矛盾）|
 | 11 | POST | `/api/v1/causal-loops/generate` | 因果迴路 | ✅ 完整實作 |
 | 12 | POST | `/api/v1/contradictions/{cid}/formalize` | 矛盾管理 | ✅ 完整實作 |
 | 13 | POST | `/api/v1/assumptions/extract` | 假設台帳 | ✅ 完整實作 |
@@ -282,7 +282,7 @@
 | 約束建議 | `POST /definitions/suggest-constraints` | `/api/v1/definitions/suggest-constraints` |
 | KPI 建議 | `POST /definitions/suggest-kpis` | `/api/v1/definitions/suggest-kpis` |
 | 5W1H 產生 | `POST /definitions/generate-5w1h` | `/api/v1/definitions/generate-5w1h` |
-| 索克拉底問題 | `POST /questions/generate` | `/api/v1/questions/generate` |
+| 蘇格拉底問題 | `POST /questions/generate` | `/api/v1/questions/generate` |
 | CLD 產生 | `POST /causal-loops/generate` | `/api/v1/causal-loops/generate` |
 | 矛盾形式化 | `POST /contradictions/{cid}/formalize` | `/api/v1/contradictions/{cid}/formalize` |
 | 假設提取 | `POST /assumptions/extract` | `/api/v1/assumptions/extract` |
@@ -303,7 +303,7 @@
 | 功能 | 實際路徑 | 說明 |
 |------|----------|------|
 | 約束可行性檢查 | `POST /api/v1/definitions/check-feasibility` | 約束間衝突偵測（pass/warn/fail）|
-| 索克拉底追問 | `POST /api/v1/questions/follow-up` | 根據既有回答產生追問 |
+| 蘇格拉底追問 | `POST /api/v1/questions/follow-up` | 根據既有回答產生追問 |
 | 回答影響 Brief | `POST /api/v1/questions/brief-impact` | 將回答轉化為 Mission/約束/KPI 變更建議 |
 | 自動標記 | `POST /api/v1/questions/auto-tag` | AI 標記回答為假設或矛盾 |
 | 路線可行性護照 | `POST /api/v1/alternatives/validation-passport` | Anti-Anchor 路線的驗證護照 |

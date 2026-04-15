@@ -221,7 +221,7 @@ rd_assistant_design_system/triz_knowledge_base/
 ```mermaid
 graph TD
     subgraph PhaseI ["Phase I: 定義問題空間 (Week 1-2)"]
-        S1["Step 1: 問題界定<br>(白帽)<br>(工件: Constraint)"] --> S2["Step 2: 理解全貌<br>(索克拉底)<br>(工件: Contradiction)"]
+        S1["Step 1: 問題界定<br>(白帽)<br>(工件: Constraint)"] --> S2["Step 2: 理解全貌<br>(蘇格拉底)<br>(工件: Contradiction)"]
         S2 --> S3["Step 3: 系統建模<br>(藍帽)<br>(工件: Contradiction, Breakpoint)"]
     end
 
@@ -327,7 +327,7 @@ graph TD
 
 ---
 
-## Step 2: 理解全貌 (索克拉底問答)
+## Step 2: 理解全貌 (蘇格拉底問答)
 
 ### 2.1 目的
 把「大家以為理所當然」的前提翻出來，為 TRIZ 矛盾識別做準備。
@@ -338,7 +338,7 @@ graph TD
 - **[RAG]** 類似產品的內部 know-how 文件、設計規範
 - **[Web]** 學術文獻中的失效機制研究、產業趨勢報告
 
-### 2.3 索克拉底七類提問 (AI 固定執行)
+### 2.3 蘇格拉底七類提問 (AI 固定執行)
 
 | 類型 | 問題範例 |
 |------|---------|
@@ -354,7 +354,7 @@ graph TD
 
 ### 2.4 假設提取增強欄位
 
-> **v8 更新**：索克拉底問答階段提取的假設新增以下欄位，以強化假設品質管理：
+> **v8 更新**：蘇格拉底問答階段提取的假設新增以下欄位，以強化假設品質管理：
 >
 > | 欄位 | 說明 |
 > |------|------|
@@ -1272,4 +1272,4 @@ KT_決策記錄:
 **版本**: v1.9
 **最後更新**: 2026-03-26
 **適用範圍**: 早期概念設計階段 (從概念發散到主路線決策)
-**重要更新**: 整合 AutoTRIZ 混合架構（規則骨架 + LLM 生成補足），TRIZ 各步驟標註規則引擎 vs LLM 執行模式；搭配企業知識庫 RAG + 網路文獻搜尋知識增強層。v1.6 新增：多模態素材輸入（Step 1）、二次矛盾掃描（Step 5a-6）。v1.7 更新：矛盾級聯從「限 2 次迴圈」升級為「矛盾收斂圖 + 分級處理 (Fatal/Major/Minor)」，新增 Pre-CAD Confidence Score。v1.8 更新：新增三層 AI 主動質疑機制——約束可行性驗證 (Gate 1)、問題框架挑戰 (索克拉底第七類「重構」提問)、架構健康度監控 (矛盾收斂圖節點 > 5 強制暫停)。AI 角色從 solver 升級為 challenger。v1.9 更新 (v8 methodology)：新增「產出與選擇分離」原則；Step 5a 僅執行 Phase A（矛盾健康度），Phase B 移至 Step 5d 決策中心；TC/PC/SF 平行產出但 RD per-contradiction 選擇；子系統採 3 層階層 + 6 維介面契約；SCAMPER 定位為創意工具（無收斂回饋），輸出直接進候選池；Step 2 假設新增 is_falsifiable / evidence_level / falsification_method 欄位。
+**重要更新**: 整合 AutoTRIZ 混合架構（規則骨架 + LLM 生成補足），TRIZ 各步驟標註規則引擎 vs LLM 執行模式；搭配企業知識庫 RAG + 網路文獻搜尋知識增強層。v1.6 新增：多模態素材輸入（Step 1）、二次矛盾掃描（Step 5a-6）。v1.7 更新：矛盾級聯從「限 2 次迴圈」升級為「矛盾收斂圖 + 分級處理 (Fatal/Major/Minor)」，新增 Pre-CAD Confidence Score。v1.8 更新：新增三層 AI 主動質疑機制——約束可行性驗證 (Gate 1)、問題框架挑戰 (蘇格拉底第七類「重構」提問)、架構健康度監控 (矛盾收斂圖節點 > 5 強制暫停)。AI 角色從 solver 升級為 challenger。v1.9 更新 (v8 methodology)：新增「產出與選擇分離」原則；Step 5a 僅執行 Phase A（矛盾健康度），Phase B 移至 Step 5d 決策中心；TC/PC/SF 平行產出但 RD per-contradiction 選擇；子系統採 3 層階層 + 6 維介面契約；SCAMPER 定位為創意工具（無收斂回饋），輸出直接進候選池；Step 2 假設新增 is_falsifiable / evidence_level / falsification_method 欄位。

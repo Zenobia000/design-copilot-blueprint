@@ -9,6 +9,7 @@
 |-----|------|----------|------------|--------|
 | E2  | TR2  | [E2--statement-of-work](E2--statement-of-work.md) | — | Approved |
 | E3  | TR3  | [E3--architecture-and-design](E3--architecture-and-design.md) (v2.0, 2026-04-15) | 05 | Active |
+| E4  | TR3  | [diagrams/E4--erd](diagrams/E4--erd.md) (v1.0, 2026-04-15) — Supabase migration 權威 ERD、5 張子圖、41 條 FK、RLS 矩陣 | 05 §5 | Draft |
 
 ## User-Facing 視角
 
@@ -55,7 +56,8 @@ E3 v2.0 依 VibeCoding Template 05 骨架組織為三部分：
 
 ## WBS (VibeCoding 16)
 
-- [E3x--wbs-development-plan](E3x--wbs-development-plan.md) — 主 WBS (release axis)：WS-A API 對齊 / WS-B E2E 差距 / WS-C Mock→Live（2026-04-15 統整，歷史版本見 [_superseded/](../_superseded/_MOC.md)）
+- **[E3x--wbs-development-plan-v2-0to1](E3x--wbs-development-plan-v2-0to1.md)** — **主 WBS v2.1**（0→1 VibeCoding Template 16 模組結構 1.0–7.0；2026-04-15 經 PM/ARCH/QA 三方 reviewer 交互評估修訂）
+- [E3x--wbs-development-plan](E3x--wbs-development-plan.md) — 舊版 WBS v1.0 (workstream axis)：WS-A API 對齊 / WS-B E2E 差距 / WS-C Mock→Live（保留交叉驗證用，歷史版本見 [_superseded/](../_superseded/_MOC.md)）
 - [E3x--wbs-development-plan-addendum](E3x--wbs-development-plan-addendum.md) — Addendum (feature axis)：WS-D..H
   - [`wbs-workstreams/WS-D--triz-layered-drilldown-development`](wbs-workstreams/WS-D--triz-layered-drilldown-development.md) — TRIZ 分層開發 (Create Tab ①)
   - [`wbs-workstreams/WS-E--subsystem-interface-development`](wbs-workstreams/WS-E--subsystem-interface-development.md) — 子系統介面 (Create Tab ②)

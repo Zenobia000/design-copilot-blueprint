@@ -16,15 +16,15 @@ TR0  TR1       TR2  TR3      TR4  TR5       TR6    TR7        TR8  TR9  TR10
 | E1   | TR1  | [00-discover/E1--project-brief-and-prd](00-discover/E1--project-brief-and-prd.md) | Approved |
 | E2   | TR2  | [01-define/E2--statement-of-work](01-define/E2--statement-of-work.md) + [01-define/adrs/](01-define/adrs/) | Approved |
 | E3   | TR3  | [01-define/E3--architecture-and-design](01-define/E3--architecture-and-design.md) (v2.0 · 2026-04-15 · VibeCoding 05 三部分骨架) | Active |
-| E4   | TR3  | 01-define/diagrams/E4--06_erd (TBD) | Planned |
+| E4   | TR3  | [01-define/diagrams/E4--erd](01-define/diagrams/E4--erd.md) | Draft |
 | E5   | TR4  | [02-design/E5--api-design-specification](02-design/E5--api-design-specification.md) + [E5x--system-design-overview](02-design/E5x--system-design-overview.md) | Active |
 | E6   | TR5  | [02-design/E6x--schema-codegen-workflow](02-design/E6x--schema-codegen-workflow.md) | Active |
 | E7   | TR5  | [02-design/E7x--e2e-manual-scripts/](02-design/E7x--e2e-manual-scripts/) | Active |
-| GR6  | TR6  | 03-develop/GR6--code-complete (TBD) | Template |
-| GR7  | TR7  | 03-develop/GR7--integration (TBD) | Template |
+| GR6  | TR6  | [03-develop/GR6--code-complete](03-develop/GR6--code-complete.md) | Draft |
+| GR7  | TR7  | [03-develop/GR7--integration](03-develop/GR7--integration.md) | Draft |
 | E8   | TR8  | [04-deliver/E8--security-and-readiness-checklists](04-deliver/E8--security-and-readiness-checklists.md) | Draft |
 | E9   | TR9  | [04-deliver/E9--deployment-and-operations-guide](04-deliver/E9--deployment-and-operations-guide.md) | Draft |
-| GR10 | TR10 | 04-deliver/GR10--ga-readiness (TBD) | Template |
+| GR10 | TR10 | [04-deliver/GR10--ga-readiness](04-deliver/GR10--ga-readiness.md) | Draft |
 
 ## The 5D Phases
 

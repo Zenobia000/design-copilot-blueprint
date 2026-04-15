@@ -6,8 +6,8 @@
 
 | #    | Document | Status |
 |------|----------|--------|
-| GR6  | GR6--code-complete (TBD) | Template |
-| GR7  | GR7--integration (TBD) | Template |
+| GR6  | [GR6--code-complete](GR6--code-complete.md) (v1.0, 2026-04-15) — Feature / Quality / UAT / Doc checklist 骨架 | Draft |
+| GR7  | [GR7--integration](GR7--integration.md) (v1.0, 2026-04-15) — E2E / API contract / Cross-module / Migration / Perf checklist 骨架 | Draft |
 
 ## Guides
 
