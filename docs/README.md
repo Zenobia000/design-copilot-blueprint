@@ -17,7 +17,7 @@ TR0  TR1       TR2  TR3      TR4  TR5       TR6    TR7        TR8  TR9  TR10
 | E2   | TR2  | [01-define/E2--statement-of-work](01-define/E2--statement-of-work.md) + [01-define/adrs/](01-define/adrs/) | Approved |
 | E3   | TR3  | [01-define/E3--architecture-and-design](01-define/E3--architecture-and-design.md) | Approved |
 | E4   | TR3  | 01-define/diagrams/E4--06_erd (TBD) | Planned |
-| E5   | TR4  | 02-design/E5--api-design-specification (TBD) | Planned |
+| E5   | TR4  | [02-design/E5--system-design-overview](02-design/E5--system-design-overview.md) | Active |
 | E6   | TR5  | [02-design/E6x--schema-codegen-workflow](02-design/E6x--schema-codegen-workflow.md) | Active |
 | E7   | TR5  | [02-design/E7x--e2e-manual-scripts/](02-design/E7x--e2e-manual-scripts/) | Active |
 | GR6  | TR6  | 03-develop/GR6--code-complete (TBD) | Template |
@@ -80,8 +80,7 @@ _gap-analysis <--- validates all zones
 
 ### Path C: Building a Feature
 1. [02-design/specs/](02-design/_MOC.md) — Find the technical spec
-2. [01-define/diagrams/](01-define/diagrams/) — Visual references
-3. [01-define/architecture/](01-define/architecture/) — SA architecture docs
+2. [01-define/E3--architecture-and-design § Appendix](01-define/E3--architecture-and-design.md#appendix架構細節整合) — Visual references + SA architecture appendices (A-E, integrated into E3)
 
 ### Path D: Understanding the Domain
 1. [_domain-knowledge/](_domain-knowledge/_MOC.md) — 方法論知識庫

@@ -10,10 +10,10 @@
 
 ## Extended Documents — Problem Validation
 
-- [E1x--customer-promise-and-principles](E1x--customer-promise-and-principles.md) — 客戶承諾與產品原則
 - [E1x--user-journey-map](E1x--user-journey-map.md) — 現狀用戶旅程圖 (Current-State Pain Map)
 - [E1x--user-research-synthesis](E1x--user-research-synthesis.md) — 使用者研究綜合報告 (Draft — 待訪談)
 - [E1x--assumption-risk-register](E1x--assumption-risk-register.md) — 假設與風險登記簿
+- [E3x--first-principles-analysis](E3x--first-principles-analysis.md) — 第一性原理批判分析（WHY 層面）
 
 ## Extended Documents — Market & Strategy
 
@@ -27,8 +27,7 @@
 
 ## Moved to Other Phases
 
-> 以下文件經五家公司審計後移至正確階段：
-> - methodology-overview → [01-define/E3x--methodology-overview](../01-define/E3x--methodology-overview.md)
-> - first-principles-analysis → [01-define/E3x--first-principles-analysis](../01-define/E3x--first-principles-analysis.md)
+> - methodology-overview → [_domain-knowledge/E3x--methodology-overview](../_domain-knowledge/E3x--methodology-overview.md)
 > - user-manual → [04-deliver/E9x--user-manual-v0.1](../04-deliver/E9x--user-manual-v0.1.md)
-> - functional-specification (PRD §5-§12 提取) → [01-define/E3x--functional-specification](../01-define/E3x--functional-specification.md)
+> - functional-specification (與 E1 PRD §5-§12 重複) → [_superseded/](../_superseded/E3x--functional-specification.md)
+> - customer-promise-and-principles (與 E1 PRD §1.2 + §5 重複) → [_superseded/](../_superseded/E1x--customer-promise-and-principles.md)
