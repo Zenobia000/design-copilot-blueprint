@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "sync:remote": "./scripts/sync-to-remote.sh",
+    "sync:remote:dry": "./scripts/sync-to-remote.sh --dry-run"
   },
   "dependencies": {
     "@dagrejs/dagre": "^2.0.4",
